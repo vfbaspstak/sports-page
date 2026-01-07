@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <!-- 1. 核心：启用 iOS Web App 模式（全屏，隐藏浏览器UI） -->
@@ -9,12 +10,14 @@
     <!-- 3. 设置添加到主屏幕后的应用名称 -->
     <meta name="apple-mobile-web-app-title" content="运动详情">
     <!-- 4. 优化视口（保留原有配置，补充全屏适配） -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>运动详情</title>
     <!-- 引入 Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Font Awesome 4.7.0 CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <!-- Font Awesome 7.1.0 Free 核心 CDN（替换原有 6.4.0/4.7.0） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css">
     <!-- 配置 Tailwind 自定义颜色（匹配原有配色） -->
     <script>
         tailwind.config = {
@@ -53,6 +56,7 @@
         }
     </style>
 </head>
+
 <body class="bg-[#f5f5f7] p-4">
     <!-- 顶部标签栏 -->
     <div class="flex gap-6 mb-5 mt-10">
@@ -79,8 +83,9 @@
     <div class="grid grid-cols-2 gap-4">
         <!-- 运动时间 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
-                <i class="fa fa-clock-o"></i>
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
+                <i class="fa-regular fa-clock"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="duration">00:42:40</div>
             <div class="text-xs text-gray-400">运动时间</div>
@@ -88,7 +93,8 @@
 
         <!-- 总消耗热量 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
                 <i class="fa fa-fire"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="calorie">474</div>
@@ -97,8 +103,9 @@
 
         <!-- 平均配速 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
-                <i class="fa fa-tachometer"></i>
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
+                <i class="fa-solid fa-gauge-high"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="pace">6'21''</div>
             <div class="text-xs text-gray-400">平均配速 (分钟/公里)</div>
@@ -106,7 +113,8 @@
 
         <!-- 平均速度 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
                 <i class="fa fa-bolt"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="speed">9.45</div>
@@ -115,7 +123,8 @@
 
         <!-- 平均步频 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-steprate-primary bg-steprate-bg mb-2">
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-steprate-primary bg-steprate-bg mb-2">
                 <i class="fa fa-refresh"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="stepRate">182</div>
@@ -124,7 +133,8 @@
 
         <!-- 平均步幅 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
                 <i class="fa fa-arrows-h"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="stepLength">86</div>
@@ -133,8 +143,9 @@
 
         <!-- 步数 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
-                <i class="fa fa-list-ol"></i>
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
+                <i class="fa-solid fa-shoe-prints"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="steps">7,775</div>
             <div class="text-xs text-gray-400">步数</div>
@@ -142,7 +153,8 @@
 
         <!-- 平均心率 -->
         <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
+            <div
+                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
                 <i class="fa fa-heartbeat"></i>
             </div>
             <div class="text-xl font-semibold text-black" id="heartRate">137</div>
@@ -155,7 +167,7 @@
         function generateSportsData() {
             // 1. 随机生成步数（5000-20000）
             const steps = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
-            
+
             // 2. 随机生成基础参数（合理范围）
             const stepLength = Math.floor(Math.random() * (90 - 50 + 1)) + 50; // 步幅：50-90厘米
             const stepRate = Math.floor(Math.random() * (180 - 110 + 1)) + 110; // 步频：110-180步/分钟
@@ -225,4 +237,5 @@
         window.addEventListener('load', checkFullscreen);
     </script>
 </body>
+
 </html>
