@@ -3,230 +3,321 @@
 
 <head>
     <meta charset="UTF-8">
-    <!-- 1. 核心：启用 iOS Web App 模式（全屏，隐藏浏览器UI） -->
+    <!-- iOS Web App 核心配置（保留） -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- 2. 配置状态栏样式（适配全屏，可选值：default/black/black-translucent） -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <!-- 3. 设置添加到主屏幕后的应用名称 -->
-    <meta name="apple-mobile-web-app-title" content="运动详情">
-    <!-- 4. 优化视口（保留原有配置，补充全屏适配） -->
+    <meta name="apple-mobile-web-app-title" content="步行详情">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>运动详情</title>
+    <title>步行详情</title>
     <!-- 引入 Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Font Awesome 4.7.0 CDN -->
-    <!-- Font Awesome 7.1.0 Free 核心 CDN（替换原有 6.4.0/4.7.0） -->
+    <!-- 引入 Font Awesome 7.1.0 Free CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css">
-    <!-- 配置 Tailwind 自定义颜色（匹配原有配色） -->
+    <!-- 配置 Tailwind 自定义颜色（现代蓝紫运动风） -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'time-primary': '#0088ff',
-                        'time-bg': 'rgba(0, 136, 255, 0.1)',
-                        'calorie-primary': '#ff6666',
-                        'calorie-bg': 'rgba(255, 102, 102, 0.1)',
-                        'pace-primary': '#33cc99',
-                        'pace-bg': 'rgba(51, 204, 153, 0.1)',
-                        'steprate-primary': '#ffcc00',
-                        'steprate-bg': 'rgba(255, 204, 0, 0.1)',
+                        'walk-primary': '#4361EE',     // 主色：科技蓝（运动APP常用）
+                        'walk-secondary': '#7209B7',   // 辅助色：紫调（提升活力）
+                        'walk-bg': 'rgba(67, 97, 238, 0.05)', // 背景色
+                        'walk-step': '#3F37C9',        // 步频色：深紫蓝
+                        'walk-efficiency': '#4CC9F0',  // 效率色：浅青蓝
+                        'walk-mood': '#F72585',        // 状态色：玫红（提升视觉层次）
                     }
                 }
             }
         }
     </script>
-    <!-- 少量自定义工具类（补充 Tailwind 原生未覆盖的细节） -->
+    <!-- 自定义工具类 -->
     <style type="text/tailwindcss">
         @layer utilities {
             .content-auto {
                 content-visibility: auto;
             }
-            .text-pace { /* 配速特殊格式的行高 */
-                line-height: 1;
+            /* 点击卡片的hover和active效果 */
+            .card-clickable {
+                transition: all 0.2s ease;
+            }
+            .card-clickable:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
+            }
+            .card-clickable:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 6px rgba(67, 97, 238, 0.1);
             }
         }
-        /* 适配刘海屏/灵动岛的安全区域（可选，优化全屏体验） */
+        /* 安全区域适配（保留） */
         body {
             padding-top: constant(safe-area-inset-top);
             padding-top: env(safe-area-inset-top);
             padding-bottom: constant(safe-area-inset-bottom);
             padding-bottom: env(safe-area-inset-bottom);
+            /* 让body占满屏幕高度，内容自适应填充 */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 内容容器占满剩余高度 */
+        .content-wrapper {
+            flex: 1;
         }
     </style>
 </head>
 
-<body class="bg-[#f5f5f7] p-4">
-    <!-- 顶部标签栏 -->
-    <div class="flex gap-6 mb-5 mt-10">
-        <div class="text-sm text-gray-500">轨迹</div>
-        <div class="text-sm text-gray-500">配速</div>
-        <div class="text-sm text-gray-500">分段</div>
-        <div class="text-sm text-gray-500">图表</div>
-        <div class="text-sm text-black font-semibold">详情</div>
-    </div>
-
-    <!-- 日期 -->
-    <div class="text-sm text-gray-600 mb-3" id="date">2025年3月31日 早上7:11</div>
-
-    <!-- 公里数 -->
-    <div class="mb-2">
-        <span class="text-[60px] font-bold text-black text-pace" id="distance">6.72</span>
-        <span class="text-2xl text-black ml-1">公里</span>
-    </div>
-
-    <!-- 描述文本 -->
-    <div class="text-sm text-gray-600 mb-6 leading-relaxed">本次锻炼提升有氧体能，增强心肺能力，强度较高。</div>
-
-    <!-- 数据网格 - 使用 Tailwind 网格布局 -->
-    <div class="grid grid-cols-2 gap-4">
-        <!-- 运动时间 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
-                <i class="fa-regular fa-clock"></i>
+<body class="bg-[#f8f9fa]">
+    <div class="content-wrapper">
+        <!-- 顶部封面区 - 新主题色适配 -->
+        <div class="relative bg-walk-bg pt-8 pb-6 px-4">
+            <!-- 装饰元素（新主题色） -->
+            <div class="absolute top-0 left-0 w-20 h-20 bg-walk-primary/10 rounded-br-full"></div>
+            <div class="absolute bottom-0 right-0 w-28 h-28 bg-walk-secondary/10 rounded-tl-full"></div>
+            <!-- 行走类型 + 日期 -->
+            <div class="flex items-center justify-between mb-3 relative z-10">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-person-walking text-walk-primary text-lg"></i>
+                    <span class="text-lg font-semibold text-walk-primary" id="walkType">休闲步行</span>
+                </div>
+                <span class="text-sm text-gray-500" id="date">2025年4月1日 上午9:23</span>
             </div>
-            <div class="text-xl font-semibold text-black" id="duration">00:42:40</div>
-            <div class="text-xs text-gray-400">运动时间</div>
+            <!-- 总距离 - 保持字体大小 -->
+            <div class="flex items-baseline mb-4 relative z-10">
+                <span class="text-[64px] font-bold text-black leading-none" id="distance">8.24</span>
+                <span class="text-3xl text-black ml-2">公里</span>
+            </div>
+            <!-- 行走描述 -->
+            <p class="text-sm text-gray-600 leading-relaxed relative z-10" id="description">
+                本次步行以休闲为主，路线平缓，适合放松身心，提升心肺功能。全程共经过3个街区，2个公园，步行状态良好，无疲劳感。
+            </p>
         </div>
 
-        <!-- 总消耗热量 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
-                <i class="fa fa-fire"></i>
+        <!-- 核心数据区 - 总步数卡片添加点击事件和交互样式 -->
+        <div class="px-4 py-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <!-- 总时长 -->
+                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-primary/10 mb-2">
+                        <i class="fa-regular fa-clock text-walk-primary text-base"></i>
+                    </div>
+                    <div class="text-xl font-semibold text-black mb-1" id="duration">02:15:30</div>
+                    <div class="text-xs text-gray-400">总时长</div>
+
+                </div>
+                <!-- 总步数（添加点击刷新功能 + 交互样式） -->
+                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full card-clickable cursor-pointer"
+                    id="stepsCard">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-step/10 mb-2">
+                        <i class="fa-solid fa-shoe-prints text-walk-step text-base"></i>
+                    </div>
+                    <div class="text-xl font-semibold text-black mb-1" id="steps">12,568</div>
+                    <div class="text-xs text-gray-400">总步数</div>
+
+                </div>
+                <!-- 平均速度 -->
+                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-efficiency/10 mb-2">
+                        <i class="fa-solid fa-gauge-high text-walk-efficiency text-base"></i>
+                    </div>
+                    <div class="text-xl font-semibold text-black mb-1" id="speed">5.8</div>
+                    <div class="text-xs text-gray-400">公里/小时</div>
+
+                </div>
+                <!-- 行走效率 -->
+                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-efficiency/10 mb-2">
+                        <i class="fa-solid fa-calculator text-walk-efficiency text-base"></i>
+                    </div>
+                    <div class="text-xl font-semibold text-black mb-1" id="efficiency">152</div>
+                    <div class="text-xs text-gray-400">步/百米</div>
+
+                </div>
             </div>
-            <div class="text-xl font-semibold text-black" id="calorie">474</div>
-            <div class="text-xs text-gray-400">总消耗热量 (千卡)</div>
         </div>
 
-        <!-- 平均配速 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
-                <i class="fa-solid fa-gauge-high"></i>
+        <!-- 详细数据卡片组 - 新主题色适配 -->
+        <div class="px-4 py-2 space-y-4 mb-8">
+            <!-- 步行节奏+体能消耗 合并卡片 -->
+            <div class="bg-white rounded-xl p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-person-walking text-walk-step text-lg"></i>
+                        <h3 class="text-lg font-semibold text-black">步行核心数据</h3>
+                    </div>
+                    <span class="text-xs text-gray-400" id="intensity">中等强度</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <!-- 步行节奏 -->
+                    <div class="space-y-3">
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">平均步频</div>
+                            <div class="text-2xl font-bold text-walk-step" id="stepRate">112 <span
+                                    class="text-sm font-normal text-gray-400">步/分钟</span></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">平均步幅</div>
+                            <div class="text-2xl font-bold text-walk-step" id="stepLength">66 <span
+                                    class="text-sm font-normal text-gray-400">厘米</span></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">最高步频</div>
+                            <div class="text-2xl font-bold text-walk-step" id="maxStepRate">135 <span
+                                    class="text-sm font-normal text-gray-400">步/分钟</span></div>
+                        </div>
+                    </div>
+                    <!-- 体能消耗 -->
+                    <div class="space-y-3">
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">总消耗热量</div>
+                            <div class="text-2xl font-bold text-walk-primary" id="calorie">586 <span
+                                    class="text-sm font-normal text-gray-400">千卡</span></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">平均心率</div>
+                            <div class="text-2xl font-bold text-walk-primary" id="heartRate">118 <span
+                                    class="text-sm font-normal text-gray-400">次/分钟</span></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500 mb-1">最高心率</div>
+                            <div class="text-2xl font-bold text-walk-primary" id="maxHeartRate">142 <span
+                                    class="text-sm font-normal text-gray-400">次/分钟</span></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 步行状态分析 -->
+                <div class="pt-3 border-t border-gray-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-comment-dots text-walk-mood text-base"></i>
+                        <h4 class="text-base font-semibold text-black">步行状态分析</h4>
+                    </div>
+                    <p class="text-sm text-gray-600 leading-relaxed" id="statusAnalysis">
+                        本次步行前30分钟步频稳定在105-110步/分钟，中段（1小时-1.5小时）步频提升至115-120步/分钟，心率同步上升至125-130次/分钟，后段略有下降，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。
+                    </p>
+                </div>
             </div>
-            <div class="text-xl font-semibold text-black" id="pace">6'21''</div>
-            <div class="text-xs text-gray-400">平均配速 (分钟/公里)</div>
-        </div>
 
-        <!-- 平均速度 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
-                <i class="fa fa-bolt"></i>
+            <!-- 步行建议卡片 -->
+            <div class="bg-white rounded-xl p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fa-solid fa-lightbulb text-walk-secondary text-lg"></i>
+                    <h3 class="text-lg font-semibold text-black">步行建议</h3>
+                </div>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
+                        <span>可适当增加上坡路段，提升锻炼强度，进一步增强心肺功能</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
+                        <span>建议每日保持该步行时长，每周4-5次，效果更佳</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
+                        <span>步行后可进行5-10分钟拉伸，缓解下肢肌肉紧张</span>
+                    </li>
+                </ul>
             </div>
-            <div class="text-xl font-semibold text-black" id="speed">9.45</div>
-            <div class="text-xs text-gray-400">平均速度 (公里/小时)</div>
-        </div>
-
-        <!-- 平均步频 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-steprate-primary bg-steprate-bg mb-2">
-                <i class="fa fa-refresh"></i>
-            </div>
-            <div class="text-xl font-semibold text-black" id="stepRate">182</div>
-            <div class="text-xs text-gray-400">平均步频 (步/分钟)</div>
-        </div>
-
-        <!-- 平均步幅 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-pace-primary bg-pace-bg mb-2">
-                <i class="fa fa-arrows-h"></i>
-            </div>
-            <div class="text-xl font-semibold text-black" id="stepLength">86</div>
-            <div class="text-xs text-gray-400">平均步幅 (厘米)</div>
-        </div>
-
-        <!-- 步数 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-time-primary bg-time-bg mb-2">
-                <i class="fa-solid fa-shoe-prints"></i>
-            </div>
-            <div class="text-xl font-semibold text-black" id="steps">7,775</div>
-            <div class="text-xs text-gray-400">步数</div>
-        </div>
-
-        <!-- 平均心率 -->
-        <div class="bg-white rounded-xl p-4 flex flex-col gap-2">
-            <div
-                class="w-8 h-8 flex items-center justify-center text-lg rounded-full text-calorie-primary bg-calorie-bg mb-2">
-                <i class="fa fa-heartbeat"></i>
-            </div>
-            <div class="text-xl font-semibold text-black" id="heartRate">137</div>
-            <div class="text-xs text-gray-400">平均心率 (次/分钟)</div>
         </div>
     </div>
 
     <script>
-        // 核心逻辑：随机生成数据并反算关联指标（修改日期为当前时间）
-        function generateSportsData() {
-            // 1. 随机生成步数（5000-20000）
-            const steps = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
+        // 核心逻辑：生成步行专属随机数据
+        function generateWalkData() {
+            // 1. 基础参数（步行场景合理范围）
+            const baseStepRate = Math.floor(Math.random() * (110 - 70 + 1)) + 70; // 步频：90-130步/分钟
+            const baseStepLength = Math.floor(Math.random() * (75 - 60 + 1)) + 60; // 步幅：50-70厘米
+            const totalHours = Math.random() * (2 - 0.5) + 0.5; // 总时长：0.5-3小时
+            const heartRate = Math.floor(Math.random() * (130 - 80 + 1)) + 80; // 心率：90-130次/分钟
+            const maxStepRate = baseStepRate + Math.floor(Math.random() * 30) + 5; // 最高步频
+            const maxHeartRate = heartRate + Math.floor(Math.random() * 30) + 5; // 最高心率
 
-            // 2. 随机生成基础参数（合理范围）
-            const stepLength = Math.floor(Math.random() * (90 - 50 + 1)) + 50; // 步幅：50-90厘米
-            const stepRate = Math.floor(Math.random() * (180 - 110 + 1)) + 110; // 步频：110-180步/分钟
-            const heartRate = Math.floor(Math.random() * (150 - 100 + 1)) + 100; // 心率：100-150次/分钟
+            // 2. 计算核心数据（逻辑自洽）
+            const totalMinutes = totalHours * 60;
+            const steps = Math.floor(totalMinutes * baseStepRate); // 总步数 = 总分钟数 × 步频
+            const distance = (steps * baseStepLength / 100 / 1000).toFixed(2); // 公里数
+            const speed = (parseFloat(distance) / totalHours).toFixed(1); // 平均速度
+            const efficiency = Math.floor((steps / parseFloat(distance)) / 10); // 行走效率（步/百米）
+            const calorie = Math.floor(parseFloat(distance) * 70); // 热量消耗
+            const restMinutes = Math.floor(Math.random() * 15) + 5; // 休息时间：5-20分钟
+            const intensity = baseStepRate > 120 ? "高强度" : baseStepRate > 100 ? "中等强度" : "低强度";
 
-            // 3. 反算核心数据
-            const distance = (steps * stepLength / 100 / 1000).toFixed(2); // 公里数：步数*步幅(厘米)/100(转米)/1000(转公里)
-            const totalMinutes = steps / stepRate; // 总时长（分钟）
-            const calorie = Math.floor(steps * 0.05); // 热量：每步约0.05千卡（可调整系数）
-
-            // 4. 格式化运动时长（转成 HH:MM:SS）
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = Math.floor(totalMinutes % 60);
-            const seconds = Math.floor((totalMinutes - Math.floor(totalMinutes)) * 60);
+            // 3. 格式化时间
+            const hours = Math.floor(totalHours);
+            const minutes = Math.floor((totalHours - hours) * 60);
+            const seconds = Math.floor(((totalHours - hours) * 60 - minutes) * 60);
             const duration = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-            // 5. 计算配速（分钟/公里）并格式化（如6'21''）
-            const paceMinutes = totalMinutes / parseFloat(distance); // 总分钟数 / 公里数 = 每公里分钟数
-            const paceMin = Math.floor(paceMinutes); // 配速分钟部分
-            const paceSec = Math.floor((paceMinutes - paceMin) * 60); // 配速秒数部分
-            const pace = `${paceMin}'${paceSec.toString().padStart(2, '0')}''`;
-
-            // 6. 计算平均速度（公里/小时）：3600秒 / (配速(分钟)*60秒) = 公里/小时
-            const speed = (3600 / (paceMinutes * 60)).toFixed(2);
-
-            // 7. 格式化步数（添加千分位）
-            const formattedSteps = steps.toLocaleString();
-
-            // 8. 生成当前时间（替换原随机日期逻辑）
+            // 当前日期格式化
             const now = new Date();
-            const year = now.getFullYear(); // 当前年
-            const month = now.getMonth() + 1; // 当前月（getMonth返回0-11，需+1）
-            const day = now.getDate(); // 当前日
-            let hour = now.getHours(); // 当前小时（24小时制）
-            const minute = now.getMinutes(); // 当前分钟
-            // 处理时段（早上/下午）和12小时制转换
-            const period = hour < 12 ? '早上' : '下午';
-            // 24小时制转12小时制（12点保持12，0点转12）
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            let hour = now.getHours();
+            const minute = now.getMinutes();
+            const period = hour < 12 ? '上午' : '下午';
             hour = hour % 12 || 12;
-            // 格式化日期字符串（保持原有格式）
             const date = `${year}年${month}月${day}日 ${period}${hour}:${minute.toString().padStart(2, '0')}`;
 
-            // 9. 渲染到页面
+            // 4. 格式化步数（千分位）
+            const formattedSteps = steps.toLocaleString();
+
+            // 5. 行走类型与描述
+            const walkTypes = ['休闲步行', '健走锻炼', '城市漫步', '公园散步'];
+            const walkType = walkTypes[Math.floor(Math.random() * walkTypes.length)];
+            const descriptions = [
+                '本次步行以休闲为主，路线平缓，适合放松身心，提升心肺功能。全程共经过3个街区，2个公园，步行状态良好，无疲劳感。',
+                '健走锻炼效果显著，步频稳定，有助于增强下肢力量和耐力，改善血液循环。全程无休息，保持匀速前进，锻炼效果佳。',
+                '城市漫步路线平坦，节奏轻松，适合日常锻炼，有效缓解工作压力。途中经过5个公交站，4个便利店，步行环境便利。',
+                '公园散步环境优美，空气清新，节奏舒缓，是放松身心的理想选择。全程树荫覆盖，温度适宜，步行体验极佳。'
+            ];
+            const description = descriptions[walkTypes.indexOf(walkType)];
+
+            // 6. 生成步行状态分析
+            const baseFreq = baseStepRate - 5;
+            const midFreqStart = baseStepRate + 5;
+            const midFreqEnd = baseStepRate + 10;
+            const midHeartStart = heartRate + 7;
+            const midHeartEnd = heartRate + 12;
+            const maxHeart = heartRate + 15;
+            const statusAnalysis = `本次步行前30分钟步频稳定在${baseFreq}-${baseStepRate}步/分钟，中段（1小时-1.5小时）步频提升至${midFreqStart}-${midFreqEnd}步/分钟，心率同步上升至${midHeartStart}-${midHeartEnd}次/分钟，后段略有下降，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。`;
+
+            // 7. 渲染到页面
+            document.getElementById('walkType').textContent = walkType;
             document.getElementById('date').textContent = date;
             document.getElementById('distance').textContent = distance;
+            document.getElementById('description').textContent = description;
             document.getElementById('duration').textContent = duration;
-            document.getElementById('calorie').textContent = calorie;
-            document.getElementById('pace').textContent = pace;
-            document.getElementById('speed').textContent = speed;
-            document.getElementById('stepRate').textContent = stepRate;
-            document.getElementById('stepLength').textContent = stepLength;
             document.getElementById('steps').textContent = formattedSteps;
+            document.getElementById('speed').textContent = speed;
+            document.getElementById('efficiency').textContent = efficiency;
+            document.getElementById('stepRate').textContent = baseStepRate;
+            document.getElementById('stepLength').textContent = baseStepLength;
+            document.getElementById('calorie').textContent = calorie;
             document.getElementById('heartRate').textContent = heartRate;
+            document.getElementById('maxStepRate').textContent = maxStepRate;
+            document.getElementById('maxHeartRate').textContent = maxHeartRate;
+            document.getElementById('intensity').textContent = intensity;
+            document.getElementById('statusAnalysis').textContent = statusAnalysis;
         }
 
         // 页面加载时生成数据
-        window.onload = generateSportsData;
+        window.onload = generateWalkData;
 
-        // 可选：监听全屏状态（如需主动控制）
+        // 添加点击总步数卡片刷新数据的功能
+        document.getElementById('stepsCard').addEventListener('click', function () {
+            // 添加点击反馈动画
+            this.classList.add('opacity-80');
+            setTimeout(() => {
+                this.classList.remove('opacity-80');
+            }, 200);
+
+            // 重新生成数据
+            generateWalkData();
+        });
+
+        // 监听全屏状态（保留）
         function checkFullscreen() {
             if (window.navigator.standalone) {
                 console.log('已进入iOS Web App全屏模式');
