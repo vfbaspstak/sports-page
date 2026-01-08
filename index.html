@@ -223,7 +223,7 @@
         function generateWalkData() {
             // 1. 基础参数（步行场景合理范围）
             const baseStepRate = Math.floor(Math.random() * (110 - 70 + 1)) + 70; // 步频：90-130步/分钟
-            const baseStepLength = Math.floor(Math.random() * (75 - 60 + 1)) + 60; // 步幅：50-70厘米
+            const baseStepLength = Math.floor(Math.random() * (75 - 65 + 1)) + 65; // 步幅：50-70厘米
             const totalHours = Math.random() * (2 - 0.5) + 0.5; // 总时长：0.5-3小时
             const heartRate = Math.floor(Math.random() * (130 - 80 + 1)) + 80; // 心率：90-130次/分钟
             const maxStepRate = baseStepRate + Math.floor(Math.random() * 30) + 5; // 最高步频
