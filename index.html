@@ -48,11 +48,6 @@
         }
         /* 安全区域适配（保留） */
         body {
-            /* padding-top: constant(safe-area-inset-top); */
-            /* padding-top: env(safe-area-inset-top); */
-            /* padding-bottom: constant(safe-area-inset-bottom); */
-            /* padding-bottom: env(safe-area-inset-bottom); */
-            /* 让body占满屏幕高度，内容自适应填充 */
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -219,25 +214,26 @@
     </div>
 
     <script>
-        // 核心逻辑：生成步行专属随机数据
+        // 核心逻辑：生成步行专属随机数据（修改为以总步数为核心）
         function generateWalkData() {
-            // 1. 基础参数（步行场景合理范围）
-            const baseStepRate = Math.floor(Math.random() * (110 - 70 + 1)) + 70; // 步频：90-130步/分钟
-            const baseStepLength = Math.floor(Math.random() * (75 - 65 + 1)) + 65; // 步幅：50-70厘米
-            const totalHours = Math.random() * (2 - 0.5) + 0.5; // 总时长：0.5-3小时
-            const heartRate = Math.floor(Math.random() * (130 - 80 + 1)) + 80; // 心率：90-130次/分钟
-            const maxStepRate = baseStepRate + Math.floor(Math.random() * 30) + 5; // 最高步频
-            const maxHeartRate = heartRate + Math.floor(Math.random() * 30) + 5; // 最高心率
+            // 1. 基础参数（修改核心：先随机总步数 5000-15000）
+            const totalSteps = Math.floor(Math.random() * (15000 - 5000 + 1)) + 5000; // 总步数：5000-15000
+            const baseStepRate = Math.floor(Math.random() * (110 - 80 + 1)) + 80; // 步频：80-110步/分钟（更贴合日常步行）
+            const baseStepLength = Math.floor(Math.random() * (75 - 60 + 1)) + 60; // 步幅：60-75厘米
+            // 总时长 = 总步数 / 步频（转换为小时，保留两位小数）
+            const totalHours = (totalSteps / baseStepRate) / 60;
+            // 心率：平均80-110，最高不超过120
+            const heartRate = Math.floor(Math.random() * (110 - 80 + 1)) + 80;
+            const maxStepRate = Math.min(baseStepRate + Math.floor(Math.random() * 20) + 5, 130); // 最高步频不超130
+            const maxHeartRate = Math.min(heartRate + Math.floor(Math.random() * 15) + 5, 120); // 最高心率不超120
 
             // 2. 计算核心数据（逻辑自洽）
             const totalMinutes = totalHours * 60;
-            const steps = Math.floor(totalMinutes * baseStepRate); // 总步数 = 总分钟数 × 步频
-            const distance = (steps * baseStepLength / 100 / 1000).toFixed(2); // 公里数
+            const distance = (totalSteps * baseStepLength / 100 / 1000).toFixed(2); // 公里数 = 总步数 × 步幅(厘米) / 100(厘米→米) / 1000(米→公里)
             const speed = (parseFloat(distance) / totalHours).toFixed(1); // 平均速度
-            const efficiency = Math.floor((steps / parseFloat(distance)) / 10); // 行走效率（步/百米）
-            const calorie = Math.floor(parseFloat(distance) * 70); // 热量消耗
-            const restMinutes = Math.floor(Math.random() * 15) + 5; // 休息时间：5-20分钟
-            const intensity = baseStepRate > 120 ? "高强度" : baseStepRate > 100 ? "中等强度" : "低强度";
+            const efficiency = Math.floor((totalSteps / parseFloat(distance)) / 10); // 行走效率（步/百米）
+            const calorie = Math.floor(parseFloat(distance) * 70); // 热量消耗（按每公里70千卡估算）
+            const intensity = baseStepRate > 100 ? "高强度" : baseStepRate > 90 ? "中等强度" : "低强度";
 
             // 3. 格式化时间
             const hours = Math.floor(totalHours);
@@ -257,7 +253,7 @@
             const date = `${year}年${month}月${day}日 ${period}${hour}:${minute.toString().padStart(2, '0')}`;
 
             // 4. 格式化步数（千分位）
-            const formattedSteps = steps.toLocaleString();
+            const formattedSteps = totalSteps.toLocaleString();
 
             // 5. 行走类型与描述
             const walkTypes = ['休闲步行', '健走锻炼', '城市漫步', '公园散步'];
@@ -270,15 +266,35 @@
             ];
             const description = descriptions[walkTypes.indexOf(walkType)];
 
-            // 6. 生成步行状态分析
-            const baseFreq = baseStepRate - 5;
-            const midFreqStart = baseStepRate + 5;
-            const midFreqEnd = baseStepRate + 10;
-            const midHeartStart = heartRate + 7;
-            const midHeartEnd = heartRate + 12;
-            const maxHeart = heartRate + 15;
-            const statusAnalysis = `本次步行前30分钟步频稳定在${baseFreq}-${baseStepRate}步/分钟，中段（1小时-1.5小时）步频提升至${midFreqStart}-${midFreqEnd}步/分钟，心率同步上升至${midHeartStart}-${midHeartEnd}次/分钟，后段略有下降，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。`;
+            // 6. 生成步行状态分析（基于真实生成的数据动态拼接）
+            // 计算步行各阶段的真实数据范围
+            const earlyStageStepRateMin = baseStepRate - 5; // 前期步频下限
+            const earlyStageStepRateMax = baseStepRate;     // 前期步频上限
+            const midStageStepRateMin = baseStepRate + 5;   // 中期步频下限
+            const midStageStepRateMax = baseStepRate + 10;  // 中期步频上限
+            const midStageHeartMin = heartRate + 5;         // 中期心率下限
+            const midStageHeartMax = Math.min(heartRate + 10, 115); // 中期心率上限（不超115）
+            // 动态拼接分析文本
+            // 6. 生成步行状态分析（基于真实总时长动态调整时间阶段）
+            // 先将总时长转换为分钟，方便判断
+            const totalDurationMinutes = Math.floor(totalHours * 60);
+            // 定义不同时长对应的阶段描述
+            let statusAnalysis = '';
 
+            // 根据总时长动态生成合理的阶段描述
+            if (totalDurationMinutes < 30) {
+                // 超短时（<30分钟）：仅描述整体状态
+                statusAnalysis = `本次步行时长较短（${totalDurationMinutes}分钟），全程步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，心率保持在${heartRate}-${midStageHeartMin}次/分钟，节奏轻快，无疲劳感，适合日常碎片化锻炼。`;
+            } else if (totalDurationMinutes < 60) {
+                // 短时（30-60分钟）：描述前半段和后半段
+                statusAnalysis = `本次步行前${Math.floor(totalDurationMinutes / 2)}分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，后半段步频略有波动（${baseStepRate}-${midStageStepRateMin}步/分钟），心率维持在${heartRate}-${midStageHeartMin}次/分钟，整体节奏平稳，无明显疲劳迹象。`;
+            } else if (totalDurationMinutes < 90) {
+                // 中时（60-90分钟）：描述前30分钟、中段（30-60分钟）
+                statusAnalysis = `本次步行前30分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，中段（30-60分钟）步频提升至${midStageStepRateMin}-${midStageStepRateMax}步/分钟，心率同步上升至${midStageHeartMin}-${midStageHeartMax}次/分钟，最后${totalDurationMinutes - 60}分钟略有下降，整体达到日常锻炼的理想效果。`;
+            } else {
+                // 长时（≥90分钟）：保留原1小时-1.5小时的描述，且补充剩余时长
+                statusAnalysis = `本次步行前30分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，中段（1小时-1.5小时）步频提升至${midStageStepRateMin}-${midStageStepRateMax}步/分钟，心率同步上升至${midStageHeartMin}-${midStageHeartMax}次/分钟，后${totalDurationMinutes - 90}分钟略有下降至${earlyStageStepRateMin}步/分钟左右，心率回落至${heartRate}次/分钟，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。`;
+            }
             // 7. 渲染到页面
             document.getElementById('walkType').textContent = walkType;
             document.getElementById('date').textContent = date;
