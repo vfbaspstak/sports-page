@@ -1,344 +1,242 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
-    <!-- iOS Web App 核心配置（保留） -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="步行详情">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>步行详情</title>
-    <!-- 引入 Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Font Awesome 7.1.0 Free CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css">
-    <!-- 配置 Tailwind 自定义颜色（现代蓝紫运动风） -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'walk-primary': '#4361EE',     // 主色：科技蓝（运动APP常用）
-                        'walk-secondary': '#7209B7',   // 辅助色：紫调（提升活力）
-                        'walk-bg': 'rgba(67, 97, 238, 0.05)', // 背景色
-                        'walk-step': '#3F37C9',        // 步频色：深紫蓝
-                        'walk-efficiency': '#4CC9F0',  // 效率色：浅青蓝
-                        'walk-mood': '#F72585',        // 状态色：玫红（提升视觉层次）
-                    }
-                }
-            }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPad 语音转文字</title>
+    <style>
+        /* 适配 iPad 触屏和尺寸 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
         }
-    </script>
-    <!-- 自定义工具类 -->
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
-            /* 点击卡片的hover和active效果 */
-            .card-clickable {
-                transition: all 0.2s ease;
-            }
-            .card-clickable:active {
-                transform: translateY(0);
-                box-shadow: 0 2px 6px rgba(67, 97, 238, 0.1);
-            }
-        }
-        /* 安全区域适配（保留） */
+
         body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            padding: 30px;
+            background-color: #f5f5f5;
         }
-        /* 内容容器占满剩余高度 */
-        .content-wrapper {
-            flex: 1;
+
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 大尺寸按钮（适配 iPad 触屏） */
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 18px;
+            min-width: 120px;
+            touch-action: manipulation; /* 禁用 iPad 300ms 触摸延迟 */
+            cursor: pointer;
+        }
+
+        #startBtn {
+            background-color: #42b983;
+        }
+
+        #startBtn:disabled {
+            background-color: #e53935;
+            animation: pulse 1s infinite; /* 录音中脉冲动画 */
+        }
+
+        #stopBtn {
+            background-color: #e53935;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* 状态提示 */
+        .status {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 识别结果 */
+        .result {
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-radius: 12px;
+            min-height: 100px;
+        }
+
+        .result h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #resultText {
+            font-size: 18px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        /* 录音中动画 */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* 适配 iPad mini 等小屏 */
+        @media (max-width: 768px) {
+            button {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+            .container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
+<body>
+    <div class="container">
+        <!-- 状态提示 -->
+        <div class="status" id="statusText">未开始识别</div>
 
-<body class="bg-[#f8f9fa]">
-    <div class="content-wrapper">
-        <!-- 顶部封面区 - 新主题色适配 -->
-        <div class="relative bg-walk-bg pt-10 pb-6 px-4">
-            <!-- 装饰元素（新主题色） -->
-            <div class="absolute top-0 left-0 w-20 h-20 bg-walk-primary/10 rounded-br-full"></div>
-            <div class="absolute bottom-0 right-0 w-28 h-28 bg-walk-secondary/10 rounded-tl-full"></div>
-            <!-- 行走类型 + 日期 -->
-            <div class="flex items-center justify-between mb-3 relative z-10">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-person-walking text-walk-primary text-lg"></i>
-                    <span class="text-lg font-semibold text-walk-primary" id="walkType">休闲步行</span>
-                </div>
-                <span class="text-sm text-gray-500" id="date">2026年1月29日 上午10:19</span>
-            </div>
-            <!-- 总距离 - 保持字体大小 -->
-            <div class="flex items-baseline mb-4 relative z-10">
-                <span class="text-[64px] font-bold text-black leading-none" id="distance">8.24</span>
-                <span class="text-3xl text-black ml-2">公里</span>
-            </div>
-            <!-- 行走描述 -->
-            <p class="text-sm text-gray-600 leading-relaxed relative z-10" id="description">
-                本次步行以休闲为主，路线平缓，适合放松身心，提升心肺功能。全程共经过3个街区，2个公园，步行状态良好，无疲劳感。
-            </p>
+        <!-- 操作按钮 -->
+        <div class="btn-group">
+            <button id="startBtn" onclick="startRecognition()">开始语音转文字</button>
+            <button id="stopBtn" onclick="stopRecognition()" disabled>停止识别</button>
         </div>
 
-        <!-- 核心数据区 - 总步数卡片添加点击事件和交互样式 -->
-        <div class="px-4 py-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <!-- 总时长 -->
-                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
-                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-primary/10 mb-2">
-                        <i class="fa-regular fa-clock text-walk-primary text-base"></i>
-                    </div>
-                    <div class="text-xl font-semibold text-black mb-1" id="duration">02:15:30</div>
-                    <div class="text-xs text-gray-400">总时长</div>
-
-                </div>
-                <!-- 总步数（添加点击刷新功能 + 交互样式） -->
-                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full card-clickable cursor-pointer"
-                    id="stepsCard">
-                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-step/10 mb-2">
-                        <i class="fa-solid fa-shoe-prints text-walk-step text-base"></i>
-                    </div>
-                    <div class="text-xl font-semibold text-black mb-1" id="steps">12,568</div>
-                    <div class="text-xs text-gray-400">总步数</div>
-
-                </div>
-                <!-- 平均速度 -->
-                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
-                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-efficiency/10 mb-2">
-                        <i class="fa-solid fa-gauge-high text-walk-efficiency text-base"></i>
-                    </div>
-                    <div class="text-xl font-semibold text-black mb-1" id="speed">5.8</div>
-                    <div class="text-xs text-gray-400">公里/小时</div>
-
-                </div>
-                <!-- 行走效率 -->
-                <div class="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm h-full">
-                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-walk-efficiency/10 mb-2">
-                        <i class="fa-solid fa-calculator text-walk-efficiency text-base"></i>
-                    </div>
-                    <div class="text-xl font-semibold text-black mb-1" id="efficiency">152</div>
-                    <div class="text-xs text-gray-400">步/百米</div>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- 详细数据卡片组 - 新主题色适配 -->
-        <div class="px-4 py-2 space-y-4 mb-8">
-            <!-- 步行节奏+体能消耗 合并卡片 -->
-            <div class="bg-white rounded-xl p-4">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-person-walking text-walk-step text-lg"></i>
-                        <h3 class="text-lg font-semibold text-black">步行核心数据</h3>
-                    </div>
-                    <span class="text-xs text-gray-400" id="intensity">中等强度</span>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <!-- 步行节奏 -->
-                    <div class="space-y-3">
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">平均步频</div>
-                            <div class="text-2xl font-bold text-walk-step" id="stepRate">112 <span
-                                    class="text-sm font-normal text-gray-400">步/分钟</span></div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">平均步幅</div>
-                            <div class="text-2xl font-bold text-walk-step" id="stepLength">66 <span
-                                    class="text-sm font-normal text-gray-400">厘米</span></div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">最高步频</div>
-                            <div class="text-2xl font-bold text-walk-step" id="maxStepRate">135 <span
-                                    class="text-sm font-normal text-gray-400">步/分钟</span></div>
-                        </div>
-                    </div>
-                    <!-- 体能消耗 -->
-                    <div class="space-y-3">
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">总消耗热量</div>
-                            <div class="text-2xl font-bold text-walk-primary" id="calorie">586 <span
-                                    class="text-sm font-normal text-gray-400">千卡</span></div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">平均心率</div>
-                            <div class="text-2xl font-bold text-walk-primary" id="heartRate">118 <span
-                                    class="text-sm font-normal text-gray-400">次/分钟</span></div>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">最高心率</div>
-                            <div class="text-2xl font-bold text-walk-primary" id="maxHeartRate">142 <span
-                                    class="text-sm font-normal text-gray-400">次/分钟</span></div>
-                        </div>
-                    </div>
-                </div>
-                <!-- 步行状态分析 -->
-                <div class="pt-3 border-t border-gray-100">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i class="fa-solid fa-comment-dots text-walk-mood text-base"></i>
-                        <h4 class="text-base font-semibold text-black">步行状态分析</h4>
-                    </div>
-                    <p class="text-sm text-gray-600 leading-relaxed" id="statusAnalysis">
-                        本次步行前30分钟步频稳定在105-110步/分钟，中段（1小时-1.5小时）步频提升至115-120步/分钟，心率同步上升至125-130次/分钟，后段略有下降，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。
-                    </p>
-                </div>
-            </div>
-
-            <!-- 步行建议卡片 -->
-            <div class="bg-white rounded-xl p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <i class="fa-solid fa-lightbulb text-walk-secondary text-lg"></i>
-                    <h3 class="text-lg font-semibold text-black">步行建议</h3>
-                </div>
-                <ul class="text-sm text-gray-600 space-y-2">
-                    <li class="flex items-start gap-2">
-                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
-                        <span>可适当增加上坡路段，提升锻炼强度，进一步增强心肺功能</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
-                        <span>建议每日保持该步行时长，每周4-5次，效果更佳</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <i class="fa-solid fa-check-circle text-walk-primary mt-0.5 text-xs"></i>
-                        <span>步行后可进行5-10分钟拉伸，缓解下肢肌肉紧张</span>
-                    </li>
-                </ul>
-            </div>
+        <!-- 识别结果 -->
+        <div class="result">
+            <h3>识别结果：</h3>
+            <div id="resultText">请点击「开始语音转文字」后说话...</div>
         </div>
     </div>
 
     <script>
-        // 核心逻辑：生成步行专属随机数据（修改为以总步数为核心）
-        function generateWalkData() {
-            // 1. 基础参数（修改核心：先随机总步数 5000-15000）
-            const totalSteps = Math.floor(Math.random() * (15000 - 5000 + 1)) + 5000; // 总步数：5000-15000
-            const baseStepRate = Math.floor(Math.random() * (110 - 80 + 1)) + 80; // 步频：80-110步/分钟（更贴合日常步行）
-            const baseStepLength = Math.floor(Math.random() * (75 - 60 + 1)) + 60; // 步幅：60-75厘米
-            // 总时长 = 总步数 / 步频（转换为小时，保留两位小数）
-            const totalHours = (totalSteps / baseStepRate) / 60;
-            // 心率：平均80-110，最高不超过120
-            const heartRate = Math.floor(Math.random() * (110 - 80 + 1)) + 80;
-            const maxStepRate = Math.min(baseStepRate + Math.floor(Math.random() * 20) + 5, 130); // 最高步频不超130
-            const maxHeartRate = Math.min(heartRate + Math.floor(Math.random() * 15) + 5, 120); // 最高心率不超120
+        // 全局变量
+        let recognition = null;
+        let isListening = false;
+        const statusText = document.getElementById('statusText');
+        const resultText = document.getElementById('resultText');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
 
-            // 2. 计算核心数据（逻辑自洽）
-            const totalMinutes = totalHours * 60;
-            const distance = (totalSteps * baseStepLength / 100 / 1000).toFixed(2); // 公里数 = 总步数 × 步幅(厘米) / 100(厘米→米) / 1000(米→公里)
-            const speed = (parseFloat(distance) / totalHours).toFixed(1); // 平均速度
-            const efficiency = Math.floor((totalSteps / parseFloat(distance)) / 10); // 行走效率（步/百米）
-            const calorie = Math.floor(parseFloat(distance) * 70); // 热量消耗（按每公里70千卡估算）
-            const intensity = baseStepRate > 100 ? "高强度" : baseStepRate > 90 ? "中等强度" : "低强度";
-
-            // 3. 格式化时间
-            const hours = Math.floor(totalHours);
-            const minutes = Math.floor((totalHours - hours) * 60);
-            const seconds = Math.floor(((totalHours - hours) * 60 - minutes) * 60);
-            const duration = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-            // 当前日期格式化
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            let hour = now.getHours();
-            const minute = now.getMinutes();
-            const period = hour < 12 ? '上午' : '下午';
-            hour = hour % 12 || 12;
-            const date = `${year}年${month}月${day}日 ${period}${hour}:${minute.toString().padStart(2, '0')}`;
-
-            // 4. 格式化步数（千分位）
-            const formattedSteps = totalSteps.toLocaleString();
-
-            // 5. 行走类型与描述
-            const walkTypes = ['休闲步行', '健走锻炼', '城市漫步', '公园散步'];
-            const walkType = walkTypes[Math.floor(Math.random() * walkTypes.length)];
-            const descriptions = [
-                '本次步行以休闲为主，路线平缓，适合放松身心，提升心肺功能。',
-                '健走锻炼效果显著，步频稳定，有助于增强下肢力量和耐力，改善血液循环。',
-                '城市漫步路线平坦，节奏轻松，适合日常锻炼，有效缓解工作压力。',
-                '公园散步环境优美，空气清新，节奏舒缓，是放松身心的理想选择。'
-            ];
-            const description = descriptions[walkTypes.indexOf(walkType)];
-
-            // 6. 生成步行状态分析（基于真实生成的数据动态拼接）
-            // 计算步行各阶段的真实数据范围
-            const earlyStageStepRateMin = baseStepRate - 5; // 前期步频下限
-            const earlyStageStepRateMax = baseStepRate;     // 前期步频上限
-            const midStageStepRateMin = baseStepRate + 5;   // 中期步频下限
-            const midStageStepRateMax = baseStepRate + 10;  // 中期步频上限
-            const midStageHeartMin = heartRate + 5;         // 中期心率下限
-            const midStageHeartMax = Math.min(heartRate + 10, 115); // 中期心率上限（不超115）
-            // 动态拼接分析文本
-            // 6. 生成步行状态分析（基于真实总时长动态调整时间阶段）
-            // 先将总时长转换为分钟，方便判断
-            const totalDurationMinutes = Math.floor(totalHours * 60);
-            // 定义不同时长对应的阶段描述
-            let statusAnalysis = '';
-
-            // 根据总时长动态生成合理的阶段描述
-            if (totalDurationMinutes < 30) {
-                // 超短时（<30分钟）：仅描述整体状态
-                statusAnalysis = `本次步行时长较短（${totalDurationMinutes}分钟），全程步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，心率保持在${heartRate}-${midStageHeartMin}次/分钟，节奏轻快，无疲劳感，适合日常碎片化锻炼。`;
-            } else if (totalDurationMinutes < 60) {
-                // 短时（30-60分钟）：描述前半段和后半段
-                statusAnalysis = `本次步行前${Math.floor(totalDurationMinutes / 2)}分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，后半段步频略有波动（${baseStepRate}-${midStageStepRateMin}步/分钟），心率维持在${heartRate}-${midStageHeartMin}次/分钟，整体节奏平稳，无明显疲劳迹象。`;
-            } else if (totalDurationMinutes < 90) {
-                // 中时（60-90分钟）：描述前30分钟、中段（30-60分钟）
-                statusAnalysis = `本次步行前30分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，中段（30-60分钟）步频提升至${midStageStepRateMin}-${midStageStepRateMax}步/分钟，心率同步上升至${midStageHeartMin}-${midStageHeartMax}次/分钟，最后${totalDurationMinutes - 60}分钟略有下降，整体达到日常锻炼的理想效果。`;
-            } else {
-                // 长时（≥90分钟）：保留原1小时-1.5小时的描述，且补充剩余时长
-                statusAnalysis = `本次步行前30分钟步频稳定在${earlyStageStepRateMin}-${earlyStageStepRateMax}步/分钟，中段（1小时-1.5小时）步频提升至${midStageStepRateMin}-${midStageStepRateMax}步/分钟，心率同步上升至${midStageHeartMin}-${midStageHeartMax}次/分钟，后${totalDurationMinutes - 90}分钟略有下降至${earlyStageStepRateMin}步/分钟左右，心率回落至${heartRate}次/分钟，整体步行节奏平稳，无明显疲劳迹象，达到日常锻炼的理想效果。`;
+        // 初始化语音识别（适配 Safari/Chrome）
+        function initRecognition() {
+            // 兼容 Safari 的前缀
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert('当前浏览器不支持语音识别，请使用 Safari/Chrome 最新版本');
+                return null;
             }
-            // 7. 渲染到页面
-            document.getElementById('walkType').textContent = walkType;
-            // document.getElementById('date').textContent = date;
-            document.getElementById('distance').textContent = distance;
-            document.getElementById('description').textContent = description;
-            document.getElementById('duration').textContent = duration;
-            document.getElementById('steps').textContent = formattedSteps;
-            document.getElementById('speed').textContent = speed;
-            document.getElementById('efficiency').textContent = efficiency;
-            document.getElementById('stepRate').textContent = baseStepRate;
-            document.getElementById('stepLength').textContent = baseStepLength;
-            document.getElementById('calorie').textContent = calorie;
-            document.getElementById('heartRate').textContent = heartRate;
-            document.getElementById('maxStepRate').textContent = maxStepRate;
-            document.getElementById('maxHeartRate').textContent = maxHeartRate;
-            document.getElementById('intensity').textContent = intensity;
-            document.getElementById('statusAnalysis').textContent = statusAnalysis;
+
+            // 创建识别实例
+            const rec = new SpeechRecognition();
+            rec.lang = 'zh-CN'; // 强制中文识别
+            rec.continuous = true; // 连续识别（支持长语音）
+            rec.interimResults = true; // 实时返回中间结果（边说边转）
+
+            // 实时接收识别结果
+            rec.onresult = function (event) {
+                let text = '';
+                // 遍历所有识别结果
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    text += event.results[i][0].transcript;
+                }
+                resultText.textContent = text;
+            };
+
+            // 识别开始回调
+            rec.onstart = function () {
+                isListening = true;
+                statusText.textContent = '正在识别中，请说话...';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            };
+
+            // 识别结束回调
+            rec.onend = function () {
+                isListening = false;
+                statusText.textContent = '识别已停止';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                // 如果是意外中断（比如静音），自动重启
+                if (isListening) {
+                    rec.start();
+                }
+            };
+
+            // 错误处理（适配 iPad 常见错误）
+            rec.onerror = function (event) {
+                let errorMsg = '识别出错：';
+                switch (event.error) {
+                    case 'not-allowed':
+                        errorMsg = '麦克风权限被拒绝，请在设置中开启权限';
+                        break;
+                    case 'no-speech':
+                        errorMsg = '未检测到语音，请大声说话';
+                        break;
+                    case 'audio-capture':
+                        errorMsg = '未检测到麦克风，请检查设备';
+                        break;
+                    default:
+                        errorMsg += event.error;
+                }
+                statusText.textContent = errorMsg;
+                isListening = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            };
+
+            return rec;
         }
 
-        // 页面加载时生成数据
-        window.onload = generateWalkData;
+        // 开始识别
+        function startRecognition() {
+            // 初始化识别实例
+            if (!recognition) {
+                recognition = initRecognition();
+            }
+            if (!recognition) return;
 
-        // 添加点击总步数卡片刷新数据的功能
-        document.getElementById('stepsCard').addEventListener('click', function () {
-            // 添加点击反馈动画
-            this.classList.add('opacity-80');
-            setTimeout(() => {
-                this.classList.remove('opacity-80');
-            }, 200);
+            // 清空之前的结果
+            resultText.textContent = '识别中...';
+            // 开始识别
+            recognition.start();
+        }
 
-            // 重新生成数据
-            generateWalkData();
-        });
-
-        // 监听全屏状态（保留）
-        function checkFullscreen() {
-            if (window.navigator.standalone) {
-                console.log('已进入iOS Web App全屏模式');
-            } else {
-                console.log('在Safari浏览器中（非全屏）');
+        // 停止识别
+        function stopRecognition() {
+            if (recognition && isListening) {
+                recognition.stop();
+                isListening = false;
             }
         }
-        window.addEventListener('load', checkFullscreen);
+
+        // 页面卸载时清理资源
+        window.onbeforeunload = function () {
+            if (recognition) {
+                recognition.stop();
+            }
+        };
     </script>
 </body>
-
 </html>
