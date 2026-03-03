@@ -175,18 +175,18 @@
         <!-- 状态提示 -->
         <div class="status" id="statusText">未开始识别</div>
 
-        <!-- 操作按钮 -->
+        <!-- 操作按钮（移除onclick，改用事件监听） -->
         <div class="btn-group">
-            <button id="startBtn" onclick="startRecognition()">开始识别+录音</button>
-            <button id="stopBtn" onclick="stopRecognition()" disabled>停止</button>
-            <button id="saveBtn" onclick="saveAudio()" disabled>保存音频</button>
+            <button id="startBtn">开始识别+录音</button>
+            <button id="stopBtn" disabled>停止</button>
+            <button id="saveBtn" disabled>保存音频</button>
         </div>
 
         <!-- 自定义音频播放控件 -->
         <div class="audio-player" id="audioPlayer">
             <div class="play-control">
-                <button id="playPauseBtn" onclick="togglePlayPause()">▶️</button>
-                <div class="progress-container" onclick="seekAudio(event)">
+                <button id="playPauseBtn">▶️</button>
+                <div class="progress-container" id="progressContainer">
                     <div class="progress-bar" id="progressBar"></div>
                 </div>
             </div>
@@ -195,7 +195,7 @@
                 <span id="totalTime">00:00</span>
             </div>
             <!-- 隐藏的原生audio（核心播放引擎） -->
-            <audio id="audioCore" ontimeupdate="updateProgress()" onended="audioEnded()"></audio>
+            <audio id="audioCore"></audio>
         </div>
 
         <!-- 识别结果 -->
@@ -206,7 +206,7 @@
     </div>
 
     <script>
-        // 全局变量
+        // ========== 全局变量 ==========
         let recognition = null;      // 语音识别实例
         let mediaRecorder = null;    // 录音实例
         let audioStream = null;      // 音频流
@@ -215,26 +215,30 @@
         let isListening = false;
         let isPlaying = false;       // 音频播放状态
 
-        // DOM 元素
+        // ========== DOM 元素获取 ==========
         const statusText = document.getElementById('statusText');
         const resultText = document.getElementById('resultText');
         const audioPlayer = document.getElementById('audioPlayer');
         const audioCore = document.getElementById('audioCore');
         const playPauseBtn = document.getElementById('playPauseBtn');
         const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
         const currentTimeEl = document.getElementById('currentTime');
         const totalTimeEl = document.getElementById('totalTime');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const saveBtn = document.getElementById('saveBtn');
 
+        // ========== 工具函数 ==========
         // 格式化时间（秒 → 分:秒）
         function formatTime(seconds) {
+            if (isNaN(seconds)) return '00:00';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
+        // ========== 核心功能函数 ==========
         // 初始化语音识别 + 录音
         function initRecognitionAndRecord() {
             // 1. 初始化语音识别
@@ -376,10 +380,15 @@
         // 播放/暂停切换
         function togglePlayPause() {
             if (audioCore.paused) {
-                audioCore.play();
-                isPlaying = true;
-                playPauseBtn.textContent = '⏸️';
-                statusText.textContent = '正在播放录音...';
+                audioCore.play()
+                    .then(() => {
+                        isPlaying = true;
+                        playPauseBtn.textContent = '⏸️';
+                        statusText.textContent = '正在播放录音...';
+                    })
+                    .catch(err => {
+                        alert('播放失败：' + err.message);
+                    });
             } else {
                 audioCore.pause();
                 isPlaying = false;
@@ -407,7 +416,6 @@
 
         // 点击进度条跳转播放位置
         function seekAudio(event) {
-            const progressContainer = event.currentTarget;
             const width = progressContainer.clientWidth;
             const clickX = event.offsetX;
             const duration = audioCore.duration;
@@ -416,30 +424,50 @@
             progressBar.style.width = `${(seekTime / duration) * 100}%`;
         }
 
-        // 错误处理
-        recognition?.onerror = function (event) {
-            let errorMsg = '识别出错：';
-            switch (event.error) {
-                case 'not-allowed':
-                    errorMsg = '麦克风权限被拒绝，请在设置中开启';
-                    break;
-                case 'no-speech':
-                    errorMsg = '未检测到语音，请大声说话';
-                    break;
-                default:
-                    errorMsg += event.error;
+        // ========== 事件监听（核心修复：替代onclick） ==========
+        // 页面加载完成后绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 开始按钮
+            startBtn.addEventListener('click', startRecognition);
+            // 停止按钮
+            stopBtn.addEventListener('click', stopRecognition);
+            // 保存按钮
+            saveBtn.addEventListener('click', saveAudio);
+            // 播放/暂停按钮
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            // 进度条点击
+            progressContainer.addEventListener('click', seekAudio);
+            // 音频进度更新
+            audioCore.addEventListener('timeupdate', updateProgress);
+            // 音频播放结束
+            audioCore.addEventListener('ended', audioEnded);
+            // 语音识别错误处理
+            if (recognition) {
+                recognition.addEventListener('error', function (event) {
+                    let errorMsg = '识别出错：';
+                    switch (event.error) {
+                        case 'not-allowed':
+                            errorMsg = '麦克风权限被拒绝，请在设置中开启';
+                            break;
+                        case 'no-speech':
+                            errorMsg = '未检测到语音，请大声说话';
+                            break;
+                        default:
+                            errorMsg += event.error;
+                    }
+                    statusText.textContent = errorMsg;
+                    stopRecognition();
+                });
             }
-            statusText.textContent = errorMsg;
-            stopRecognition();
-        };
+        });
 
-        // 页面卸载清理资源
-        window.onbeforeunload = function () {
+        // ========== 页面卸载清理资源 ==========
+        window.addEventListener('beforeunload', function () {
             stopRecognition();
             if (audioBlob) {
                 URL.revokeObjectURL(audioCore.src);
             }
-        };
+        });
     </script>
 </body>
 </html>
