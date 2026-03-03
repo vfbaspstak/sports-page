@@ -1,351 +1,348 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>无重复 MP3语音转文字工具</title>
-  <!-- 引入MP3编码库 -->
-  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无重复 MP3语音转文字工具</title>
+    <!-- 引入MP3编码库 -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+        }
 
-    body {
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
+        body {
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
 
-    .container {
-      max-width: 100%;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-    }
+        .container {
+            max-width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+        }
 
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
 
-    button {
-      padding: 12px 20px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      flex: 1;
-      min-width: 100px;
-    }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 100px;
+        }
 
-    #startBtn {
-      background-color: #42b983;
-    }
+        #startBtn {
+            background-color: #42b983;
+        }
 
-    #startBtn:disabled {
-      background-color: #e53935;
-    }
+        #startBtn:disabled {
+            background-color: #e53935;
+        }
 
-    #stopBtn {
-      background-color: #e53935;
-    }
+        #stopBtn {
+            background-color: #e53935;
+        }
 
-    #saveBtn {
-      background-color: #2196f3;
-    }
+        #saveBtn {
+            background-color: #2196f3;
+        }
 
-    button:disabled {
-      background-color: #ccc;
-    }
+        button:disabled {
+            background-color: #ccc;
+        }
 
-    .status {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 15px;
-      text-align: center;
-    }
+        .status {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+            text-align: center;
+        }
 
-    .result {
-      padding: 15px;
-      background-color: #f8f8f8;
-      border-radius: 8px;
-      min-height: 150px;
-      margin-bottom: 20px;
-      font-size: 16px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
+        .result {
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+            min-height: 150px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
 
-    .audio-section {
-      display: none;
-      margin-top: 20px;
-    }
+        .audio-section {
+            display: none;
+            margin-top: 20px;
+        }
 
-    audio {
-      width: 100%;
-      margin-top: 10px;
-    }
-  </style>
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="container">
-    <div class="status" id="statusText">点击「开始」启动</div>
+    <div class="container">
+        <div class="status" id="statusText">点击「开始」启动</div>
 
-    <div class="btn-group">
-      <button id="startBtn">开始</button>
-      <button id="stopBtn" disabled>停止</button>
-      <button id="saveBtn" disabled>保存MP3</button>
+        <div class="btn-group">
+            <button id="startBtn">开始</button>
+            <button id="stopBtn" disabled>停止</button>
+            <button id="saveBtn" disabled>保存MP3</button>
+        </div>
+
+        <div class="result" id="resultText">请说话...</div>
+
+        <div class="audio-section" id="audioSection">
+            <div style="font-size: 14px; color: #333; margin-bottom: 5px;">录音回放（MP3格式）：</div>
+            <audio id="audioPlayer" controls playsinline>
+        </div>
     </div>
 
-    <div class="result" id="resultText">请说话...</div>
+    <script>
+        // ========== 全局变量 ==========
+        let recognition = null;
+        let audioContext = null;
+        let audioInput = null;
+        let recorderNode = null;
+        let mp3Encoder = null;
+        let audioStream = null;
+        let isRecording = false;
 
-    <div class="audio-section" id="audioSection">
-      <div style="font-size: 14px; color: #333; margin-bottom: 5px;">录音回放（MP3格式）：</div>
-      <audio id="audioPlayer" controls playsinline>
-    </div>
-  </div>
+        // ========== 核心防重复变量 ==========
+        let finalText = '';          // 已确认的最终文本，只追加不重复
+        let processedIndex = 0;       // 已处理过的结果下标，彻底杜绝重复
+        const sampleRate = 16000;
+        const bitRate = 64;
 
-  <script>
-    // ========== 全局变量 ==========
-    let recognition = null;
-    let audioContext = null;
-    let audioInput = null;
-    let recorderNode = null;
-    let mp3Encoder = null;
-    let audioStream = null;
-    let isRecording = false;
+        // ========== DOM元素 ==========
+        const statusText = document.getElementById('statusText');
+        const resultText = document.getElementById('resultText');
+        const audioSection = document.getElementById('audioSection');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const saveBtn = document.getElementById('saveBtn');
 
-    // ========== 核心防重复变量 ==========
-    let finalText = '';          // 已确认的最终文本，只追加不重复
-    let processedIndex = 0;       // 已处理过的结果下标，彻底杜绝重复
-    const sampleRate = 16000;
-    const bitRate = 64;
-
-    // ========== DOM元素 ==========
-    const statusText = document.getElementById('statusText');
-    const resultText = document.getElementById('resultText');
-    const audioSection = document.getElementById('audioSection');
-    const audioPlayer = document.getElementById('audioPlayer');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const saveBtn = document.getElementById('saveBtn');
-
-    // ========== iOS音频激活 ==========
-    function activateIOSAudio() {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.value = 0;
-      osc.start(0);
-      osc.stop(0);
-      ctx.close();
-    }
-
-    // ========== 核心修复：语音识别（彻底无重复） ==========
-    function initRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert('请使用Safari/Chrome/Edge等现代浏览器');
-        return false;
-      }
-
-      recognition = new SpeechRecognition();
-      recognition.lang = 'zh-CN';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      // 彻底解决重复：只处理本次新增的结果，绝不碰历史已处理内容
-      recognition.onresult = function (event) {
-        let currentLiveText = '';
-        // 核心：只遍历【本次新增】的结果，从resultIndex开始，而非从头遍历
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          // 只有最终结果，且未被处理过，才追加到最终文本
-          if (event.results[i].isFinal) {
-            finalText += transcript + '\n';
-            processedIndex = i + 1; // 标记已处理到的下标
-          } else {
-            // 临时结果只实时显示，不存入最终文本
-            currentLiveText += transcript;
-          }
+        // ========== iOS音频激活 ==========
+        function activateIOSAudio() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.value = 0;
+            osc.start(0);
+            osc.stop(0);
+            ctx.close();
         }
-        // 更新页面：最终文本 + 实时临时文本
-        resultText.textContent = finalText + currentLiveText;
-        statusText.textContent = '🎤 正在识别...';
-      };
 
-      // 识别结束不自动重启，避免遗漏和重复
-      recognition.onend = function () {
-        if (isRecording) {
-          statusText.textContent = '🎙️ 等待继续说话...';
-        }
-      };
-
-      // 错误处理
-      recognition.onerror = function (event) {
-        if (event.error === 'no-speech') {
-          statusText.textContent = '🎙️ 未检测到语音，请继续说话';
-        } else if (event.error !== 'aborted') {
-          statusText.textContent = '识别错误: ' + event.error;
-        }
-      };
-
-      return true;
-    }
-
-    // ========== MP3录音核心 ==========
-    function initMP3Recorder(stream) {
-      window.AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioContext({ sampleRate: sampleRate });
-      audioInput = audioContext.createMediaStreamSource(stream);
-      recorderNode = audioContext.createScriptProcessor(4096, 1, 1);
-      mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, bitRate);
-
-      const mp3Data = [];
-      recorderNode.onaudioprocess = function (e) {
-        if (!isRecording) return;
-        const pcmData = e.inputBuffer.getChannelData(0);
-        const int16Data = new Int16Array(pcmData.length);
-        for (let i = 0; i < pcmData.length; i++) {
-          int16Data[i] = Math.max(-1, Math.min(1, pcmData[i])) * 32767;
-        }
-        const mp3Buffer = mp3Encoder.encodeBuffer(int16Data);
-        if (mp3Buffer.length > 0) {
-          mp3Data.push(mp3Buffer);
-        }
-      };
-
-      audioInput.connect(recorderNode);
-      recorderNode.connect(audioContext.destination);
-
-      return {
-        finish: function () {
-          const endBuffer = mp3Encoder.flush();
-          if (endBuffer.length > 0) {
-            mp3Data.push(endBuffer);
-          }
-          return new Blob(mp3Data, { type: 'audio/mp3' });
-        },
-        clear: function () {
-          mp3Data.length = 0;
-        }
-      };
-    }
-
-    // ========== 开始录音+识别 ==========
-    function startRecording() {
-      // 重置所有状态，包括防重复标记
-      finalText = '';
-      processedIndex = 0;
-      resultText.textContent = '请说话...';
-      audioSection.style.display = 'none';
-      saveBtn.disabled = true;
-      window.currentMP3Blob = null;
-
-      activateIOSAudio();
-      if (!initRecognition()) return;
-
-      navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: sampleRate,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      })
-        .then(stream => {
-          audioStream = stream;
-          const recorder = initMP3Recorder(stream);
-
-          recognition.start();
-          isRecording = true;
-
-          statusText.textContent = '🎙️ 正在录音（MP3格式），请说话...';
-          startBtn.disabled = true;
-          stopBtn.disabled = false;
-
-          window.stopMP3Recording = function () {
-            isRecording = false;
-            if (recognition) {
-              try { recognition.stop(); } catch (e) { }
+        // ========== 核心修复：语音识别（彻底无重复） ==========
+        function initRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert('请使用Safari/Chrome/Edge等现代浏览器');
+                return false;
             }
-            if (recorderNode) {
-              recorderNode.disconnect();
-              audioInput.disconnect();
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            // 彻底解决重复：只处理本次新增的结果，绝不碰历史已处理内容
+            recognition.onresult = function(event) {
+                let currentLiveText = '';
+                // 核心：只遍历【本次新增】的结果，从resultIndex开始，而非从头遍历
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    // 只有最终结果，且未被处理过，才追加到最终文本
+                    if (event.results[i].isFinal) {
+                        finalText += transcript + '\n';
+                        processedIndex = i + 1; // 标记已处理到的下标
+                    } else {
+                        // 临时结果只实时显示，不存入最终文本
+                        currentLiveText += transcript;
+                    }
+                }
+                // 更新页面：最终文本 + 实时临时文本
+                resultText.textContent = finalText + currentLiveText;
+                statusText.textContent = '🎤 正在识别...';
+            };
+
+            // 识别结束不自动重启，避免遗漏和重复
+            recognition.onend = function() {
+                if (isRecording) {
+                    statusText.textContent = '🎙️ 等待继续说话...';
+                }
+            };
+
+            // 错误处理
+            recognition.onerror = function(event) {
+                if (event.error === 'no-speech') {
+                    statusText.textContent = '🎙️ 未检测到语音，请继续说话';
+                } else if (event.error !== 'aborted') {
+                    statusText.textContent = '识别错误: ' + event.error;
+                }
+            };
+
+            return true;
+        }
+
+        // ========== MP3录音核心 ==========
+        function initMP3Recorder(stream) {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext({ sampleRate: sampleRate });
+            audioInput = audioContext.createMediaStreamSource(stream);
+            recorderNode = audioContext.createScriptProcessor(4096, 1, 1);
+            mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, bitRate);
+
+            const mp3Data = [];
+            recorderNode.onaudioprocess = function(e) {
+                if (!isRecording) return;
+                const pcmData = e.inputBuffer.getChannelData(0);
+                const int16Data = new Int16Array(pcmData.length);
+                for (let i = 0; i < pcmData.length; i++) {
+                    int16Data[i] = Math.max(-1, Math.min(1, pcmData[i])) * 32767;
+                }
+                const mp3Buffer = mp3Encoder.encodeBuffer(int16Data);
+                if (mp3Buffer.length > 0) {
+                    mp3Data.push(mp3Buffer);
+                }
+            };
+
+            audioInput.connect(recorderNode);
+            recorderNode.connect(audioContext.destination);
+
+            return {
+                finish: function() {
+                    const endBuffer = mp3Encoder.flush();
+                    if (endBuffer.length > 0) {
+                        mp3Data.push(endBuffer);
+                    }
+                    return new Blob(mp3Data, { type: 'audio/mp3' });
+                },
+                clear: function() {
+                    mp3Data.length = 0;
+                }
+            };
+        }
+
+        // ========== 开始录音+识别 ==========
+        function startRecording() {
+            // 重置所有状态，包括防重复标记
+            finalText = '';
+            processedIndex = 0;
+            resultText.textContent = '请说话...';
+            audioSection.style.display = 'none';
+            saveBtn.disabled = true;
+            window.currentMP3Blob = null;
+
+            activateIOSAudio();
+            if (!initRecognition()) return;
+
+            navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: sampleRate,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            })
+            .then(stream => {
+                audioStream = stream;
+                const recorder = initMP3Recorder(stream);
+
+                recognition.start();
+                isRecording = true;
+
+                statusText.textContent = '🎙️ 正在录音（MP3格式），请说话...';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+
+                window.stopMP3Recording = function() {
+                    isRecording = false;
+                    if (recognition) {
+                        try { recognition.stop(); } catch(e) {}
+                    }
+                    if (recorderNode) {
+                        recorderNode.disconnect();
+                        audioInput.disconnect();
+                    }
+                    if (audioStream) {
+                        audioStream.getTracks().forEach(track => track.stop());
+                    }
+                    if (audioContext) {
+                        audioContext.close();
+                    }
+                    const mp3Blob = recorder.finish();
+                    recorder.clear();
+                    return mp3Blob;
+                };
+            })
+            .catch(err => {
+                statusText.textContent = '麦克风权限被拒绝';
+                alert('请在系统设置中允许浏览器访问麦克风');
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            });
+        }
+
+        // ========== 停止录音 ==========
+        function stopRecording() {
+            if (!isRecording) return;
+            const mp3Blob = window.stopMP3Recording();
+            if (!mp3Blob || mp3Blob.size === 0) {
+                statusText.textContent = '❌ 未采集到有效音频';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                return;
             }
-            if (audioStream) {
-              audioStream.getTracks().forEach(track => track.stop());
+
+            const audioUrl = URL.createObjectURL(mp3Blob);
+            window.currentMP3Blob = mp3Blob;
+            audioPlayer.src = audioUrl;
+            audioSection.style.display = 'block';
+            saveBtn.disabled = false;
+
+            statusText.textContent = '✅ 录音完成，已生成MP3文件';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        // ========== 保存MP3 ==========
+        function saveMP3() {
+            if (!window.currentMP3Blob) {
+                alert('无MP3文件可保存');
+                return;
             }
-            if (audioContext) {
-              audioContext.close();
-            }
-            const mp3Blob = recorder.finish();
-            recorder.clear();
-            return mp3Blob;
-          };
-        })
-        .catch(err => {
-          statusText.textContent = '麦克风权限被拒绝';
-          alert('请在系统设置中允许浏览器访问麦克风');
-          startBtn.disabled = false;
-          stopBtn.disabled = true;
-        });
-    }
+            const fileName = `语音录音_${new Date().toLocaleString('zh-CN').replace(/[/:\s]/g, '-')}.mp3`;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(window.currentMP3Blob);
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            statusText.textContent = `✅ MP3文件已保存：${fileName}`;
+        }
 
-    // ========== 停止录音 ==========
-    function stopRecording() {
-      if (!isRecording) return;
-      const mp3Blob = window.stopMP3Recording();
-      if (!mp3Blob || mp3Blob.size === 0) {
-        statusText.textContent = '❌ 未采集到有效音频';
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-        return;
-      }
-
-      const audioUrl = URL.createObjectURL(mp3Blob);
-      window.currentMP3Blob = mp3Blob;
-      audioPlayer.src = audioUrl;
-      audioSection.style.display = 'block';
-      saveBtn.disabled = false;
-
-      statusText.textContent = '✅ 录音完成，已生成MP3文件';
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
-
-    // ========== 保存MP3 ==========
-    function saveMP3() {
-      if (!window.currentMP3Blob) {
-        alert('无MP3文件可保存');
-        return;
-      }
-      const fileName = `语音录音_${new Date().toLocaleString('zh-CN').replace(/[/:\s]/g, '-')}.mp3`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(window.currentMP3Blob);
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      statusText.textContent = `✅ MP3文件已保存：${fileName}`;
-    }
-
-    // ========== 绑定事件 ==========
-    startBtn.addEventListener('click', startRecording);
-    stopBtn.addEventListener('click', stopRecording);
-    saveBtn.addEventListener('click', saveMP3);
-  </script>
+        // ========== 绑定事件 ==========
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+        saveBtn.addEventListener('click', saveMP3);
+    </script>
 </body>
-
 </html>
