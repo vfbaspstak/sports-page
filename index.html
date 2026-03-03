@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>无重复 MP3语音转文字工具</title>
+    <title>iOS回放有声音 MP3语音转文字工具</title>
     <!-- 引入MP3编码库 -->
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
@@ -87,6 +87,13 @@
             margin-top: 20px;
         }
 
+        /* 自定义播放按钮，确保是用户直接交互 */
+        #playBtn {
+            background-color: #2196f3;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
         audio {
             width: 100%;
             margin-top: 10px;
@@ -106,8 +113,11 @@
         <div class="result" id="resultText">请说话...</div>
 
         <div class="audio-section" id="audioSection">
-            <div style="font-size: 14px; color: #333; margin-bottom: 5px;">录音回放（MP3格式）：</div>
-            <audio id="audioPlayer" controls playsinline>
+            <div style="font-size: 14px; color: #333; margin-bottom: 10px;">录音回放：</div>
+            <!-- 核心修复：自定义播放按钮，确保在用户交互内处理播放 -->
+            <button id="playBtn">▶️ 点击播放录音</button>
+            <!-- 原生audio标签，仅作为备用 -->
+            <audio id="audioPlayer" controls playsinline hidden>
         </div>
     </div>
 
@@ -121,22 +131,27 @@
         let audioStream = null;
         let isRecording = false;
 
-        // ========== 核心防重复变量 ==========
-        let finalText = '';          // 已确认的最终文本，只追加不重复
-        let processedIndex = 0;       // 已处理过的结果下标，彻底杜绝重复
+        // ========== 防重复变量 ==========
+        let finalText = '';
+        let processedIndex = 0;
         const sampleRate = 16000;
         const bitRate = 64;
+
+        // ========== 核心：存储MP3的Blob和URL ==========
+        let currentMP3Blob = null;
+        let currentMP3Url = null;
 
         // ========== DOM元素 ==========
         const statusText = document.getElementById('statusText');
         const resultText = document.getElementById('resultText');
         const audioSection = document.getElementById('audioSection');
         const audioPlayer = document.getElementById('audioPlayer');
+        const playBtn = document.getElementById('playBtn');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const saveBtn = document.getElementById('saveBtn');
 
-        // ========== iOS音频激活 ==========
+        // ========== iOS音频激活（必须在用户点击事件内） ==========
         function activateIOSAudio() {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
@@ -149,7 +164,7 @@
             ctx.close();
         }
 
-        // ========== 核心修复：语音识别（彻底无重复） ==========
+        // ========== 语音识别（彻底无重复） ==========
         function initRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -162,34 +177,28 @@
             recognition.continuous = true;
             recognition.interimResults = true;
 
-            // 彻底解决重复：只处理本次新增的结果，绝不碰历史已处理内容
             recognition.onresult = function(event) {
                 let currentLiveText = '';
-                // 核心：只遍历【本次新增】的结果，从resultIndex开始，而非从头遍历
+                // 只处理本次新增结果
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
-                    // 只有最终结果，且未被处理过，才追加到最终文本
                     if (event.results[i].isFinal) {
                         finalText += transcript + '\n';
-                        processedIndex = i + 1; // 标记已处理到的下标
+                        processedIndex = i + 1;
                     } else {
-                        // 临时结果只实时显示，不存入最终文本
                         currentLiveText += transcript;
                     }
                 }
-                // 更新页面：最终文本 + 实时临时文本
                 resultText.textContent = finalText + currentLiveText;
                 statusText.textContent = '🎤 正在识别...';
             };
 
-            // 识别结束不自动重启，避免遗漏和重复
             recognition.onend = function() {
                 if (isRecording) {
                     statusText.textContent = '🎙️ 等待继续说话...';
                 }
             };
 
-            // 错误处理
             recognition.onerror = function(event) {
                 if (event.error === 'no-speech') {
                     statusText.textContent = '🎙️ 未检测到语音，请继续说话';
@@ -242,13 +251,20 @@
 
         // ========== 开始录音+识别 ==========
         function startRecording() {
-            // 重置所有状态，包括防重复标记
+            // 重置状态
             finalText = '';
             processedIndex = 0;
             resultText.textContent = '请说话...';
             audioSection.style.display = 'none';
             saveBtn.disabled = true;
-            window.currentMP3Blob = null;
+            // 清理之前的音频资源
+            if (currentMP3Url) {
+                URL.revokeObjectURL(currentMP3Url);
+                currentMP3Url = null;
+            }
+            currentMP3Blob = null;
+            audioPlayer.src = '';
+            playBtn.textContent = '▶️ 点击播放录音';
 
             activateIOSAudio();
             if (!initRecognition()) return;
@@ -312,26 +328,65 @@
                 return;
             }
 
-            const audioUrl = URL.createObjectURL(mp3Blob);
-            window.currentMP3Blob = mp3Blob;
-            audioPlayer.src = audioUrl;
+            // 核心修复1：只存储Blob，不提前设置audio.src
+            currentMP3Blob = mp3Blob;
+            // 显示播放区域
             audioSection.style.display = 'block';
             saveBtn.disabled = false;
 
-            statusText.textContent = '✅ 录音完成，已生成MP3文件';
+            statusText.textContent = '✅ 录音完成，点击下方按钮播放';
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
 
+        // ========== 核心修复2：在用户点击播放按钮时，才设置src并播放 ==========
+        function playAudio() {
+            if (!currentMP3Blob) {
+                alert('无录音文件');
+                return;
+            }
+
+            // iOS核心：在用户点击事件内，激活音频+设置src+播放，一气呵成
+            activateIOSAudio();
+
+            // 如果还没创建URL，才创建
+            if (!currentMP3Url) {
+                currentMP3Url = URL.createObjectURL(currentMP3Blob);
+                audioPlayer.src = currentMP3Url;
+            }
+
+            // 直接播放
+            if (audioPlayer.paused) {
+                audioPlayer.play()
+                    .then(() => {
+                        playBtn.textContent = '⏸️ 点击暂停';
+                        statusText.textContent = '🔊 正在播放录音...';
+                    })
+                    .catch(err => {
+                        alert('播放失败：' + err.message + '\n请检查设备音量和静音开关');
+                    });
+            } else {
+                audioPlayer.pause();
+                playBtn.textContent = '▶️ 点击播放录音';
+                statusText.textContent = '⏸️ 播放已暂停';
+            }
+        }
+
+        // ========== 原生audio播放结束，同步按钮状态 ==========
+        function audioEndedHandler() {
+            playBtn.textContent = '▶️ 点击播放录音';
+            statusText.textContent = '✅ 播放结束';
+        }
+
         // ========== 保存MP3 ==========
         function saveMP3() {
-            if (!window.currentMP3Blob) {
+            if (!currentMP3Blob) {
                 alert('无MP3文件可保存');
                 return;
             }
             const fileName = `语音录音_${new Date().toLocaleString('zh-CN').replace(/[/:\s]/g, '-')}.mp3`;
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(window.currentMP3Blob);
+            a.href = URL.createObjectURL(currentMP3Blob);
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
@@ -343,6 +398,10 @@
         startBtn.addEventListener('click', startRecording);
         stopBtn.addEventListener('click', stopRecording);
         saveBtn.addEventListener('click', saveMP3);
+        // 核心：绑定自定义播放按钮
+        playBtn.addEventListener('click', playAudio);
+        // 同步原生audio的结束事件
+        audioPlayer.addEventListener('ended', audioEndedHandler);
     </script>
 </body>
 </html>
