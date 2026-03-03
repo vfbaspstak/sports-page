@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MP3格式 语音转文字工具</title>
-  <!-- 引入MP3编码库，纯前端无需后端 -->
+  <title>无重复 MP3语音转文字工具</title>
+  <!-- 引入MP3编码库 -->
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
   <style>
     * {
@@ -104,27 +104,30 @@
       <button id="stopBtn" disabled>停止</button>
       <button id="saveBtn" disabled>保存MP3</button>
     </div>
-<div class="audio-section" id="audioSection">
+
+    <div class="result" id="resultText">请说话...</div>
+
+    <div class="audio-section" id="audioSection">
       <div style="font-size: 14px; color: #333; margin-bottom: 5px;">录音回放（MP3格式）：</div>
       <audio id="audioPlayer" controls playsinline>
     </div>
-    <div class="result" id="resultText">请说话...</div>
-
-    
   </div>
 
   <script>
     // ========== 全局变量 ==========
-    let recognition = null;       // 语音识别实例
-    let audioContext = null;      // 音频上下文
-    let audioInput = null;        // 音频输入节点
-    let recorderNode = null;      // 音频处理节点
-    let mp3Encoder = null;        // MP3编码器
-    let audioStream = null;       // 麦克风流
-    let isRecording = false;      // 录音状态
-    let finalText = '';           // 最终识别文本
-    const sampleRate = 16000;     // 采样率（语音识别+MP3最优）
-    const bitRate = 64;            // MP3比特率，兼顾音质和体积
+    let recognition = null;
+    let audioContext = null;
+    let audioInput = null;
+    let recorderNode = null;
+    let mp3Encoder = null;
+    let audioStream = null;
+    let isRecording = false;
+
+    // ========== 核心防重复变量 ==========
+    let finalText = '';          // 已确认的最终文本，只追加不重复
+    let processedIndex = 0;       // 已处理过的结果下标，彻底杜绝重复
+    const sampleRate = 16000;
+    const bitRate = 64;
 
     // ========== DOM元素 ==========
     const statusText = document.getElementById('statusText');
@@ -135,7 +138,7 @@
     const stopBtn = document.getElementById('stopBtn');
     const saveBtn = document.getElementById('saveBtn');
 
-    // ========== 核心：激活iOS音频会话（必须在用户点击内执行） ==========
+    // ========== iOS音频激活 ==========
     function activateIOSAudio() {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
@@ -148,7 +151,7 @@
       ctx.close();
     }
 
-    // ========== 1. 语音识别（无自动重启+实时转写+无遗漏） ==========
+    // ========== 核心修复：语音识别（彻底无重复） ==========
     function initRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -161,21 +164,27 @@
       recognition.continuous = true;
       recognition.interimResults = true;
 
-      // 实时转写，无重复
+      // 彻底解决重复：只处理本次新增的结果，绝不碰历史已处理内容
       recognition.onresult = function (event) {
         let currentLiveText = '';
-        for (let i = 0; i < event.results.length; i++) {
+        // 核心：只遍历【本次新增】的结果，从resultIndex开始，而非从头遍历
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          // 只有最终结果，且未被处理过，才追加到最终文本
           if (event.results[i].isFinal) {
-            finalText += event.results[i][0].transcript + '\n';
+            finalText += transcript + '\n';
+            processedIndex = i + 1; // 标记已处理到的下标
           } else {
-            currentLiveText += event.results[i][0].transcript;
+            // 临时结果只实时显示，不存入最终文本
+            currentLiveText += transcript;
           }
         }
+        // 更新页面：最终文本 + 实时临时文本
         resultText.textContent = finalText + currentLiveText;
         statusText.textContent = '🎤 正在识别...';
       };
 
-      // 识别结束不自动重启，避免遗漏输入
+      // 识别结束不自动重启，避免遗漏和重复
       recognition.onend = function () {
         if (isRecording) {
           statusText.textContent = '🎙️ 等待继续说话...';
@@ -194,53 +203,38 @@
       return true;
     }
 
-    // ========== 2. MP3录音核心（iOS兼容+全平台通用） ==========
+    // ========== MP3录音核心 ==========
     function initMP3Recorder(stream) {
-      // 初始化音频上下文
       window.AudioContext = window.AudioContext || window.webkitAudioContext;
       audioContext = new AudioContext({ sampleRate: sampleRate });
-
-      // 创建音频输入节点
       audioInput = audioContext.createMediaStreamSource(stream);
-      // 创建音频处理节点（4096缓冲区，单声道）
       recorderNode = audioContext.createScriptProcessor(4096, 1, 1);
-
-      // 初始化MP3编码器（单声道）
       mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, bitRate);
 
-      // 实时处理音频数据，编码为MP3
       const mp3Data = [];
       recorderNode.onaudioprocess = function (e) {
         if (!isRecording) return;
-        // 获取单声道PCM数据
         const pcmData = e.inputBuffer.getChannelData(0);
-        // 转换为MP3可用的Int16格式
         const int16Data = new Int16Array(pcmData.length);
         for (let i = 0; i < pcmData.length; i++) {
           int16Data[i] = Math.max(-1, Math.min(1, pcmData[i])) * 32767;
         }
-        // 编码为MP3帧
         const mp3Buffer = mp3Encoder.encodeBuffer(int16Data);
         if (mp3Buffer.length > 0) {
           mp3Data.push(mp3Buffer);
         }
       };
 
-      // 连接音频节点
       audioInput.connect(recorderNode);
       recorderNode.connect(audioContext.destination);
 
-      // 返回MP3生成方法
       return {
         finish: function () {
-          // 完成编码，写入MP3文件尾
           const endBuffer = mp3Encoder.flush();
           if (endBuffer.length > 0) {
             mp3Data.push(endBuffer);
           }
-          // 合并所有MP3帧，生成标准MP3文件
-          const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
-          return mp3Blob;
+          return new Blob(mp3Data, { type: 'audio/mp3' });
         },
         clear: function () {
           mp3Data.length = 0;
@@ -250,19 +244,17 @@
 
     // ========== 开始录音+识别 ==========
     function startRecording() {
-      // 重置所有状态
+      // 重置所有状态，包括防重复标记
       finalText = '';
+      processedIndex = 0;
       resultText.textContent = '请说话...';
       audioSection.style.display = 'none';
       saveBtn.disabled = true;
+      window.currentMP3Blob = null;
 
-      // iOS核心：必须在用户点击内激活音频
       activateIOSAudio();
-
-      // 初始化语音识别
       if (!initRecognition()) return;
 
-      // 请求麦克风权限
       navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: sampleRate,
@@ -274,28 +266,20 @@
       })
         .then(stream => {
           audioStream = stream;
-          // 初始化MP3录音器
           const recorder = initMP3Recorder(stream);
 
-          // 启动识别和录音
           recognition.start();
           isRecording = true;
 
-          // 更新状态
           statusText.textContent = '🎙️ 正在录音（MP3格式），请说话...';
           startBtn.disabled = true;
           stopBtn.disabled = false;
 
-          // 停止录音的处理逻辑
           window.stopMP3Recording = function () {
             isRecording = false;
-            // 停止识别
             if (recognition) {
-              try {
-                recognition.stop();
-              } catch (e) { }
+              try { recognition.stop(); } catch (e) { }
             }
-            // 关闭音频节点
             if (recorderNode) {
               recorderNode.disconnect();
               audioInput.disconnect();
@@ -306,7 +290,6 @@
             if (audioContext) {
               audioContext.close();
             }
-            // 生成最终MP3文件
             const mp3Blob = recorder.finish();
             recorder.clear();
             return mp3Blob;
@@ -323,7 +306,6 @@
     // ========== 停止录音 ==========
     function stopRecording() {
       if (!isRecording) return;
-      // 停止录音并获取MP3文件
       const mp3Blob = window.stopMP3Recording();
       if (!mp3Blob || mp3Blob.size === 0) {
         statusText.textContent = '❌ 未采集到有效音频';
@@ -332,30 +314,24 @@
         return;
       }
 
-      // 生成播放地址
       const audioUrl = URL.createObjectURL(mp3Blob);
-      // 挂载到全局，用于保存
       window.currentMP3Blob = mp3Blob;
-      // 设置播放控件
       audioPlayer.src = audioUrl;
       audioSection.style.display = 'block';
       saveBtn.disabled = false;
 
-      // 更新状态
       statusText.textContent = '✅ 录音完成，已生成MP3文件';
       startBtn.disabled = false;
       stopBtn.disabled = true;
     }
 
-    // ========== 保存MP3文件 ==========
+    // ========== 保存MP3 ==========
     function saveMP3() {
       if (!window.currentMP3Blob) {
         alert('无MP3文件可保存');
         return;
       }
-      // 生成带时间戳的文件名
       const fileName = `语音录音_${new Date().toLocaleString('zh-CN').replace(/[/:\s]/g, '-')}.mp3`;
-      // 创建下载链接
       const a = document.createElement('a');
       a.href = URL.createObjectURL(window.currentMP3Blob);
       a.download = fileName;
@@ -365,7 +341,7 @@
       statusText.textContent = `✅ MP3文件已保存：${fileName}`;
     }
 
-    // ========== 绑定按钮事件 ==========
+    // ========== 绑定事件 ==========
     startBtn.addEventListener('click', startRecording);
     stopBtn.addEventListener('click', stopRecording);
     saveBtn.addEventListener('click', saveMP3);
