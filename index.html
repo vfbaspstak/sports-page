@@ -1,269 +1,221 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>iOS 语音输入测试</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>微信语音输入测试</title>
+<style>
+  * {
+    margin:0; padding:0; box-sizing:border-box;
+  }
+  body {
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f5;
+  }
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+    margin-top: 20px;
+  }
+  #msgInput {
+    width: 100%;
+    height: 96px;
+    border-radius: 24px;
+    border: 1px solid #A125FC;
+    padding: 16px 80px 16px 56px;
+    font-size: 16px;
+    resize: none;
+    outline: none;
+    background: #fff;
+  }
+  .voice-btn {
+    position: absolute;
+    left: 12px;
+    bottom: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .recording {
+    background: #db4dff !important;
+  }
+  .send-btn {
+    position: absolute;
+    right: 12px;
+    bottom: 24px;
+    width: 80px;
+    height: 48px;
+    border-radius: 24px;
+    border: none;
+    background: linear-gradient(90deg, #ffeee0, #e6c4ff);
+    font-size: 14px;
+  }
 
-    body {
-      padding: 20px;
-      font-family: Arial, sans-serif;
-    }
+  /* 声波动画 */
+  .wave {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 18px;
+  }
+  .wave span {
+    width: 2px;
+    background: #fff;
+    border-radius: 1px;
+    animation: wave 1s infinite ease-in-out;
+  }
+  .wave span:nth-child(1){height:6px;animation-delay:0s}
+  .wave span:nth-child(2){height:9px;animation-delay:.2s}
+  .wave span:nth-child(3){height:12px;animation-delay:.4s}
+  .wave span:nth-child(4){height:9px;animation-delay:.6s}
+  .wave span:nth-child(5){height:6px;animation-delay:.8s}
+  @keyframes wave{
+    0%,100%{transform:scaleY(.7)}
+    50%{transform:scaleY(1.3)}
+  }
 
-    .input-box {
-      position: relative;
-      width: 100%;
-      margin-top: 20px;
-    }
+  /* 加载圈 */
+  .loading {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ccc;
+    border-top: 2px solid #666;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+  }
+  @keyframes spin{
+    100%{transform:rotate(360deg)}
+  }
 
-    textarea {
-      width: 100%;
-      height: 96px;
-      padding: 14px 70px 14px 50px;
-      border-radius: 24px;
-      border: 1px solid #A125FC;
-      font-size: 14px;
-      resize: none;
-      outline: none;
-      background: #fff;
-    }
-
-    /* 语音按钮 */
-    .voice-btn {
-      position: absolute;
-      left: 12px;
-      bottom: 14px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: #f1f1f1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    /* 录音中按钮 */
-    .recording {
-      background: #db4dff !important;
-    }
-
-    /* 发送按钮 */
-    .send-btn {
-      position: absolute;
-      right: 12px;
-      bottom: 14px;
-      width: 80px;
-      height: 48px;
-      border-radius: 24px;
-      border: none;
-      background: linear-gradient(90deg, #ffeee0 0%, #e6c4ff 100%);
-      cursor: pointer;
-    }
-
-    /* 声波动画 */
-    .wave {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      height: 18px;
-    }
-
-    .wave span {
-      width: 2px;
-      background: #fff;
-      border-radius: 1px;
-      animation: wave 1s infinite ease-in-out;
-    }
-
-    .wave span:nth-child(1) { height: 6px; animation-delay: 0s }
-    .wave span:nth-child(2) { height: 9px; animation-delay: 0.2s }
-    .wave span:nth-child(3) { height: 12px; animation-delay: 0.4s }
-    .wave span:nth-child(4) { height: 9px; animation-delay: 0.6s }
-    .wave span:nth-child(5) { height: 6px; animation-delay: 0.8s }
-
-    @keyframes wave {
-      0%, 100% { transform: scaleY(0.7); }
-      50% { transform: scaleY(1.3); }
-    }
-
-    /* 加载中 */
-    .loading {
-      width: 18px;
-      height: 18px;
-      border: 2px solid #ccc;
-      border-top: 2px solid #666;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
-    }
-
-    /* 麦克风图标 */
-    .mic-icon {
-      width: 18px;
-      height: 18px;
-      fill: #333;
-    }
-  </style>
+  /* 麦克风图标 */
+  .mic-icon {
+    width: 20px;
+    height: 20px;
+  }
+</style>
 </head>
 
 <body>
-  <div class="input-box">
-    <textarea id="msgInput" placeholder="How can I help you?"></textarea>
-
-    <!-- 语音按钮 -->
+  <div class="input-wrapper">
+    <textarea id="msgInput" placeholder="按住说话，松开识别..."></textarea>
     <button id="voiceBtn" class="voice-btn">
       <svg class="mic-icon" viewBox="0 0 24 24">
         <path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/>
       </svg>
     </button>
-
-    <!-- 发送按钮 -->
     <button id="sendBtn" class="send-btn">发送</button>
   </div>
 
-  <script>
-    // 元素
-    const msgInput = document.getElementById('msgInput');
-    const voiceBtn = document.getElementById('voiceBtn');
-    const sendBtn = document.getElementById('sendBtn');
+<script>
+const msgInput = document.getElementById('msgInput');
+const voiceBtn = document.getElementById('voiceBtn');
+const sendBtn = document.getElementById('sendBtn');
 
-    // 状态
-    let isVoiceLoading = false;
-    let isRecording = false;
-    let recognition = null;
-    let finalResult = '';
+let isRecording = false;
+let recognition = null;
+let resultText = '';
 
-    // 初始化语音识别
-    function initRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert('您的浏览器不支持语音识别');
-        return null;
-      }
+// 微信专用：必须单次识别，不能continuous
+function getRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('当前环境不支持语音识别');
+    return null;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = 'zh-CN';
+  rec.continuous = false;    // 微信必须关
+  rec.interimResults = true;
+  return rec;
+}
 
-      const rec = new SpeechRecognition();
-      rec.lang = 'zh-CN'; // 可改成 en-US 英文
-      rec.continuous = true;
-      rec.interimResults = true;
-      return rec;
-    }
+// 开始录音（按住）
+function startRecord() {
+  if (isRecording) return;
+  isRecording = true;
+  resultText = '';
+  msgInput.value = '';
 
-    // 开始录音
-    function startRecord() {
-      if (isRecording) return;
+  voiceBtn.innerHTML = '<div class="loading"></div>';
+  voiceBtn.classList.add('recording');
 
-      isVoiceLoading = true;
-      isRecording = false;
-      finalResult = '';
-      msgInput.value = '';
+  try {
+    recognition = getRecognition();
+    if (!recognition) throw new Error('不支持');
 
-      // 按钮显示加载
-      voiceBtn.innerHTML = '<div class="loading"></div>';
+    recognition.onstart = () => {
+      voiceBtn.innerHTML = `
+        <div class="wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      `;
+    };
 
-      try {
-        recognition = initRecognition();
-        if (!recognition) throw new Error('不支持语音');
-
-        recognition.onstart = () => {
-          isVoiceLoading = false;
-          isRecording = true;
-          // 切换录音动画
-          voiceBtn.innerHTML = `
-            <div class="wave">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-          `;
-          voiceBtn.classList.add('recording');
-        };
-
-        // 实时识别
-        recognition.onresult = (e) => {
-          let temp = '';
-          for (let i = e.resultIndex; i < e.results.length; i++) {
-            const transcript = e.results[i][0].transcript;
-            if (e.results[i].isFinal) {
-              finalResult += transcript + ' ';
-            } else {
-              temp = transcript;
-            }
-          }
-          msgInput.value = (finalResult + ' ' + temp).trim();
-        };
-
-        // 自动停止（静音断开）
-        recognition.onend = () => {
-          isRecording = false;
-          isVoiceLoading = false;
-          voiceBtn.classList.remove('recording');
-          voiceBtn.innerHTML = `<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/></svg>`;
-        };
-
-        recognition.onerror = (err) => {
-          console.error('语音错误', err);
-          resetVoice();
-        };
-
-        recognition.start();
-      } catch (e) {
-        resetVoice();
-      }
-    }
-
-    // 停止录音
-    function stopRecord() {
-      isRecording = false;
-      if (recognition) {
-        recognition.stop();
-        recognition = null;
-      }
-      msgInput.value = finalResult.trim();
-      voiceBtn.classList.remove('recording');
-      voiceBtn.innerHTML = `<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/></svg>`;
-    }
-
-    // 重置语音状态
-    function resetVoice() {
-      isVoiceLoading = false;
-      isRecording = false;
-      voiceBtn.classList.remove('recording');
-      voiceBtn.innerHTML = `<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/></svg>`;
-    }
-
-    // 点击语音按钮
-    voiceBtn.onclick = () => {
-      if (!isRecording) {
-        startRecord();
-      } else {
-        stopRecord();
+    recognition.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          resultText = e.results[i][0].transcript;
+          msgInput.value = resultText.trim();
+        }
       }
     };
 
-    // 发送按钮
-    sendBtn.onclick = () => {
-      const text = msgInput.value.trim();
-      if (!text) return;
-      alert('发送内容：' + text);
-      msgInput.value = '';
+    recognition.onend = () => {
+      stopRecord();
     };
 
-    // 回车发送
-    msgInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.onclick();
-      }
-    });
-  </script>
+    recognition.onerror = (err) => {
+      console.error(err);
+      stopRecord();
+    };
+
+    recognition.start();
+  } catch (e) {
+    stopRecord();
+  }
+}
+
+// 停止录音（松开）
+function stopRecord() {
+  isRecording = false;
+  if (recognition) {
+    recognition.stop();
+    recognition = null;
+  }
+  voiceBtn.classList.remove('recording');
+  voiceBtn.innerHTML = `<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/></svg>`;
+}
+
+// 微信必须用 touch 事件
+voiceBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  startRecord();
+});
+voiceBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  stopRecord();
+});
+
+sendBtn.onclick = () => {
+  const t = msgInput.value.trim();
+  if(t) {
+    alert('发送：' + t);
+    msgInput.value = '';
+  }
+};
+
+msgInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+</script>
 </body>
 </html>
