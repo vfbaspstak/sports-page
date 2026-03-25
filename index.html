@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>语音输入测试（稳定版·点击）</title>
+  <title>语音输入（稳定版+错误提示）</title>
   <style>
     * {
       margin: 0;
@@ -16,10 +16,21 @@
       font-family: Arial, sans-serif;
     }
 
+    /* 错误提示条 */
+    #errorTip {
+      display: none;
+      background: #f44336;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
     .input-box {
       position: relative;
       width: 100%;
-      margin-top: 20px;
+      margin-top: 10px;
     }
 
     textarea {
@@ -84,41 +95,15 @@
       animation: wave 1s infinite ease-in-out;
     }
 
-    .wave span:nth-child(1) {
-      height: 6px;
-      animation-delay: 0s
-    }
-
-    .wave span:nth-child(2) {
-      height: 9px;
-      animation-delay: 0.2s
-    }
-
-    .wave span:nth-child(3) {
-      height: 12px;
-      animation-delay: 0.4s
-    }
-
-    .wave span:nth-child(4) {
-      height: 9px;
-      animation-delay: 0.6s
-    }
-
-    .wave span:nth-child(5) {
-      height: 6px;
-      animation-delay: 0.8s
-    }
+    .wave span:nth-child(1) { height: 6px; animation-delay: 0s }
+    .wave span:nth-child(2) { height: 9px; animation-delay: 0.2s }
+    .wave span:nth-child(3) { height: 12px; animation-delay: 0.4s }
+    .wave span:nth-child(4) { height: 9px; animation-delay: 0.6s }
+    .wave span:nth-child(5) { height: 6px; animation-delay: 0.8s }
 
     @keyframes wave {
-
-      0%,
-      100% {
-        transform: scaleY(0.7);
-      }
-
-      50% {
-        transform: scaleY(1.3);
-      }
+      0%,100% { transform: scaleY(0.7); }
+      50% { transform: scaleY(1.3); }
     }
 
     /* 加载中 */
@@ -132,9 +117,7 @@
     }
 
     @keyframes spin {
-      100% {
-        transform: rotate(360deg);
-      }
+      100% { transform: rotate(360deg); }
     }
 
     /* 麦克风图标 */
@@ -146,26 +129,26 @@
 </head>
 
 <body>
+  <!-- 错误提示条 -->
+  <div id="errorTip"></div>
+
   <div class="input-box">
     <textarea id="msgInput" placeholder="How can I help you?"></textarea>
 
-    <!-- 语音按钮 -->
     <button id="voiceBtn" class="voice-btn">
       <svg class="mic-icon" viewBox="0 0 24 24">
-        <path
-          d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z" />
+        <path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/>
       </svg>
     </button>
 
-    <!-- 发送按钮 -->
     <button id="sendBtn" class="send-btn">发送</button>
   </div>
 
   <script>
-    // 元素
     const msgInput = document.getElementById('msgInput');
     const voiceBtn = document.getElementById('voiceBtn');
     const sendBtn = document.getElementById('sendBtn');
+    const errorTip = document.getElementById('errorTip');
 
     // 状态
     let isVoiceLoading = false;
@@ -173,20 +156,25 @@
     let recognition = null;
     let finalResult = '';
 
-    // 兼容微信 + iOS + 所有浏览器
+    // 显示错误
+    function showError(msg) {
+      errorTip.textContent = '错误：' + msg;
+      errorTip.style.display = 'block';
+      setTimeout(() => {
+        errorTip.style.display = 'none';
+      }, 4000);
+    }
+
+    // 获取语音识别对象
     function getSpeechRecognition() {
       return window.SpeechRecognition || window.webkitSpeechRecognition || null;
     }
 
-    // 点击录音按钮（核心：点击开始，点击结束）
+    // 点击录音
     voiceBtn.onclick = () => {
       if (isVoiceLoading) return;
-
-      if (!isRecording) {
-        startRecord();
-      } else {
-        stopRecord();
-      }
+      if (!isRecording) startRecord();
+      else stopRecord();
     };
 
     // 开始录音
@@ -201,7 +189,7 @@
 
       const SpeechRecognition = getSpeechRecognition();
       if (!SpeechRecognition) {
-        alert('您的浏览器/微信不支持语音识别');
+        showError('当前环境不支持语音识别（微信/浏览器不兼容）');
         resetVoice();
         return;
       }
@@ -227,28 +215,25 @@
           let temp = '';
           for (let i = e.resultIndex; i < e.results.length; i++) {
             const text = e.results[i][0].transcript;
-            if (e.results[i].isFinal) {
-              finalResult += text + ' ';
-            } else {
-              temp = text;
-            }
+            if (e.results[i].isFinal) finalResult += text + ' ';
+            else temp = text;
           }
           msgInput.value = (finalResult + ' ' + temp).trim();
         };
 
+        // 自动重启（防止微信自动停止）
         recognition.onend = () => {
-          if (isRecording && recognition) {
-            recognition.start();
-          }
+          if (isRecording && recognition) recognition.start();
         };
 
         recognition.onerror = (e) => {
-          console.error('语音错误', e);
+          showError('语音失败：' + (e.error || '未知错误'));
           resetVoice();
         };
 
         recognition.start();
       } catch (err) {
+        showError('启动录音失败：' + err.message);
         resetVoice();
       }
     }
@@ -257,12 +242,10 @@
     function stopRecord() {
       isRecording = false;
       isVoiceLoading = false;
-
       if (recognition) {
         recognition.stop();
         recognition = null;
       }
-
       msgInput.value = finalResult.trim();
       voiceBtn.classList.remove('recording');
       voiceBtn.innerHTML = `<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 18c-2.2 0-4-1.8-4-4H8c0 2.2 1.8 4 4 4s4-1.8 4-4h2c0 3.3-2.7 6-6 6z"/></svg>`;
@@ -284,7 +267,7 @@
     sendBtn.onclick = () => {
       const text = msgInput.value.trim();
       if (!text) return;
-      alert('发送内容：\n' + text);
+      alert('发送：' + text);
       msgInput.value = '';
     };
 
